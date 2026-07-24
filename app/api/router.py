@@ -9,18 +9,23 @@ router = APIRouter(prefix="/webhook",
 
 @router.post("/telegram")
 async def telegram_webhook(data: dict):
-    # data = await request.json()
-
     if "message" in data and "text" in data["message"]:
         msg = data["message"]
 
-        task = TelegramMessageTask(
-            user_id=msg["from"]["id"],
-            chat_id=msg["chat"]["id"],
-            message_id=msg["message_id"],
-            prompt=msg["text"],
+        username = (
+                msg["from"].get("username")
+                or msg["from"].get("first_name")
+                or "User"
         )
 
-        await broker.publish(task, queue="telegram_tasks")
+        task = TelegramMessageTask(
+            user_id=msg["from"]["id"],
+            username=username,
+            chat_id=msg["chat"]["id"],
+            message_id=msg["message_id"],
+            text=msg["text"],
+        )
+
+        await broker.publish(task, queue="telegram_messages")
 
     return Response(status_code=status.HTTP_200_OK)

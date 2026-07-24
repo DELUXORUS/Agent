@@ -4,6 +4,8 @@ class Settings(BaseSettings):
     BOT_TOKEN: str
     RABBITMQ_URL: str
     POSTGRES_URL: str
+    OPENROUTER_API_KEY: str
+    PROXY_URL: str
 
     model_config = SettingsConfigDict(
         env_file=".env",

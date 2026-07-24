@@ -1,20 +1,17 @@
+# Виртуальные окружения
 venv/
 .venv/
 env/
 
-.env
-*.env
-
-Dockerfile
-docker-compose.yml
-.git/
-.gitignore
-.dockerignore
-
+# Кэш Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .pytest_cache/
+
+# Git и IDE
+.git/
+.gitignore
 .idea/
 .vscode/

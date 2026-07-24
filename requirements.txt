@@ -1,0 +1,8 @@
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+faststream[rabbit]
+pydantic
+pydantic-settings
+httpx>=0.27.0
+asyncio
+openai>=1.0.0

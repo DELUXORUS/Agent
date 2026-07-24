@@ -1,23 +1,21 @@
-version: '3.8'
-
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: agent_postgres
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres_password
-      POSTGRES_DB: agent_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:./datavar/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+#  postgres:
+#    image: postgres:16-alpine
+#    container_name: agent_postgres
+#    restart: always
+#    environment:
+#      POSTGRES_USER: postgres
+#      POSTGRES_PASSWORD: postgres_password
+#      POSTGRES_DB: agent_db
+#    ports:
+#      - "5432:5432"
+#    volumes:
+#      - pgdata:/var/lib/postgresql/data
+#    healthcheck:
+#      test: ["CMD-SHELL", "pg_isready -U postgres"]
+#      interval: 5s
+#      timeout: 5s
+#      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -49,18 +47,18 @@ services:
     volumes:
       - .:/app
     depends_on:
-      postgres:
-        condition: service_healthy
+#      postgres:
+#        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
-  worker:
+  handler:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: agent_worker
+#    container_name: agent_handler
     restart: always
-    command: python -m app.worker.main
+    command: python -m app.handler.handler
     env_file:
       - .env
     volumes:
@@ -68,6 +66,19 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: agent_ngrok
+    restart: unless-stopped
+    command:
+      - "http"
+      - "--url=pacify-pajamas-unharmed.ngrok-free.dev" # ◄── Твой домен из ngrok
+      - "api:8000"                                        # ◄── Ссылаемся на наш сервис api
+    environment:
+      NGROK_AUTHTOKEN: "3GrTXzkQNfaU1HiZG7ietsOFGqx_4SRi3Lz1BQaXgqawytZfQ" # ◄── Твой токен
+    depends_on:
+      - api
 
 volumes:
   pgdata:
