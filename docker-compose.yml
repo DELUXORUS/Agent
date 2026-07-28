@@ -1,21 +1,23 @@
+version: '3.8'
+
 services:
-#  postgres:
-#    image: postgres:16-alpine
-#    container_name: agent_postgres
-#    restart: always
-#    environment:
-#      POSTGRES_USER: postgres
-#      POSTGRES_PASSWORD: postgres_password
-#      POSTGRES_DB: agent_db
-#    ports:
-#      - "5432:5432"
-#    volumes:
-#      - pgdata:/var/lib/postgresql/data
-#    healthcheck:
-#      test: ["CMD-SHELL", "pg_isready -U postgres"]
-#      interval: 5s
-#      timeout: 5s
-#      retries: 5
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: agent_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password
+      POSTGRES_DB: agent_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
@@ -40,15 +42,17 @@ services:
     container_name: agent_api
     restart: always
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    shm_size: '2gb' # ◄── Выделяем память под PyTorch / Tensor массивы
     ports:
       - "8000:8000"
     env_file:
       - .env
     volumes:
       - .:/app
+      - hf_cache:/root/.cache/huggingface # ◄── Кэш моделей, чтобы не скачивать заново
     depends_on:
-#      postgres:
-#        condition: service_healthy
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
@@ -59,12 +63,16 @@ services:
 #    container_name: agent_handler
     restart: always
     command: python -m app.handler.handler
+    shm_size: '2gb' # ◄── Выделяем память под PyTorch / Tensor массивы
     env_file:
       - .env
     volumes:
       - .:/app
+      - hf_cache:/root/.cache/huggingface # ◄── Используем общий кэш моделей
     depends_on:
       rabbitmq:
+        condition: service_healthy
+      postgres: # ◄── Добавили ожидание PostgreSQL, так как handler вызывает DB Tools
         condition: service_healthy
 
   ngrok:
@@ -73,12 +81,13 @@ services:
     restart: unless-stopped
     command:
       - "http"
-      - "--url=pacify-pajamas-unharmed.ngrok-free.dev" # ◄── Твой домен из ngrok
-      - "api:8000"                                        # ◄── Ссылаемся на наш сервис api
+      - "--url=${NGROK_DOMAIN}"
+      - "api:8000"
     environment:
-      NGROK_AUTHTOKEN: "3GrTXzkQNfaU1HiZG7ietsOFGqx_4SRi3Lz1BQaXgqawytZfQ" # ◄── Твой токен
+      NGROK_AUTHTOKEN: "${NGROK_AUTHTOKEN}"
     depends_on:
       - api
 
 volumes:
   pgdata:
+  hf_cache: # ◄── Именованный volume для кэширования PyTorch/HF моделей
