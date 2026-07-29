@@ -1,7 +1,8 @@
-from typing import Annotated, Any, Literal, TypedDict
+from typing import Annotated, Literal, TypedDict
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
+from app.schemas import MovieDTO
 
 class MovieFilter(BaseModel):
     query_text: str = Field(
@@ -34,6 +35,6 @@ class AgentState(TypedDict):
     user_id: int  # Telegram ID пользователя
     intent: Literal["guess_movie", "recommend_movies", "general_chat"] | None
     parsed_filter: MovieFilter | None  # Результат работы Structured Output
-    found_movies: list[Any]  # Список найденных объектов фильмов из Postgres
+    found_movies: list[MovieDTO]  # Список найденных объектов фильмов из Postgres
     final_response: str  # Готовый текст ответа для Telegram
     error_reason: str

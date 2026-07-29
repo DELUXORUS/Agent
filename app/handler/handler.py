@@ -1,17 +1,22 @@
+import httpx
 import asyncio
 import logging
-from app.config import settings
 from faststream import FastStream
-from app.core.broker import broker
-from app.core.http_client import get_http_client
 from langchain_core.messages import HumanMessage
+from tenacity import (
+    retry, stop_after_attempt,
+    wait_exponential, retry_if_exception_type
+)
+
+from app.core.broker import broker
+from app.config import settings
 from app.agent.graph import graph
 from app.agent.state import AgentState
+
 
 logger = logging.getLogger("uvicorn")
 
 app = FastStream(broker)
-
 
 async def generate_response(text: str, username: str, user_id: int) -> str:
     logger.info(f"Запуск LangGraph агента для @{username} (id: {user_id}): '{text}'")
@@ -28,10 +33,8 @@ async def generate_response(text: str, username: str, user_id: int) -> str:
     }
 
     try:
-        # 2. Запускаем граф и ждем выполнения всех узлов
         final_state = await graph.ainvoke(initial_state)
 
-        # 3. Достаем итоговый текст ответа
         response_text = final_state.get("final_response")
 
         if not response_text:
@@ -46,31 +49,34 @@ async def generate_response(text: str, username: str, user_id: int) -> str:
         return "Произошла ошибка при обработке запроса. Попробуй позже!"
 
 
-async def send_telegram_response(chat_id: int, text: str):
+class TelegramRateLimitError(Exception):
+    def __init__(self, retry_after: int):
+        self.retry_after = retry_after
+
+# Декоратор автоматически повторит запрос с экспоненциальной задержкой,
+# если Telegram вернет 429 или произойдет сетевая ошибка
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception_type((httpx.HTTPError, TelegramRateLimitError))
+)
+async def send_telegram_message(chat_id: int, text: str) -> None:
     url = f"https://api.telegram.org/bot{settings.BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": text,
-        "parse_mode": "Markdown",
+        "parse_mode": "HTML"
     }
 
-    client = await get_http_client()
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(url, json=payload)
 
-    while True:
-        try:
-            response = await client.post(url, json=payload)
+        # Обработка 429 Too Many Requests
+        if response.status_code == 429:
+            retry_after = response.json().get("parameters", {}).get("retry_after", 1)
+            raise TelegramRateLimitError(retry_after)
 
-            if response.status_code == 429:
-                retry_after = response.json().get("parameters", {}).get("retry_after", 1)
-                logger.warning(f"Достигнут лимит Telegram. Ожидание {retry_after} сек...")
-                await asyncio.sleep(retry_after)
-                continue
-
-            return response.status_code == 200
-
-        except Exception as e:
-            logger.error(f"Ошибка HTTP при отправке в Telegram: {e}")
-            return False
+        response.raise_for_status()
 
 @broker.subscriber("telegram_messages")
 async def handle_telegram_messages(message: dict):

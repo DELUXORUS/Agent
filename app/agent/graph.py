@@ -1,24 +1,40 @@
-# app/agent/graph.py
 from functools import partial
 from app.agent.nodes import (
     general_chat,
     intent_classification_node,
     search_for_guess_node,
-    search_for_recomended_node,
+    search_for_recommended_node,
     synthesis_response_node,
 )
-from app.agent.router import route_intent
-from app.agent.state import AgentState
-from app.config import settings
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 
+from app.agent.router import route_intent
+from app.agent.state import AgentState
+from app.config import settings
+
+
 # Инициализируем LLM
-llm = ChatOpenAI(
-    model="google/gemma-4-26b-a4b-it:free",
-    openai_api_key=settings.OPENROUTER_API_KEY,
-    openai_api_base="https://openrouter.ai/api/v1",
-    temperature=0.1,
+# llm = ChatOpenAI(
+#     model=settings.LLM_MODEL_NAME,
+#     openai_api_key=settings.OPENROUTER_API_KEY,
+#     openai_api_base=settings.OPENROUTER_URL,
+#     temperature=0.1,
+# )
+
+llm_strict = ChatOpenAI(
+    model=settings.LLM_MODEL_NAME,
+    temperature=settings.LLM_STRICT_TEMPERATURE,
+    api_key=settings.OPENROUTER_API_KEY,
+    base_url=settings.OPENROUTER_URL,
+)
+
+# Творческая модель для форматирования финального ответа и general_chat
+llm_creative = ChatOpenAI(
+    model=settings.LLM_MODEL_NAME,
+    temperature=settings.LLM_CREATIVE_TEMPERATURE,
+    api_key=settings.OPENROUTER_API_KEY,
+    base_url=settings.OPENROUTER_URL,
 )
 
 # 1. Создаем граф
@@ -26,17 +42,17 @@ workflow = StateGraph(AgentState)
 
 # 2. Регистрируем узлы
 workflow.add_node(
-    "intent_classifier", partial(intent_classification_node, llm=llm)
+    "intent_classifier", partial(intent_classification_node, llm=llm_strict)
 )
 workflow.add_node(
-    "search_for_recomended", partial(search_for_recomended_node, llm=llm)
+    "search_for_recomended", partial(search_for_recommended_node, llm=llm_strict)
 )
 workflow.add_node(
-    "search_for_guess", partial(search_for_guess_node, llm=llm)
+    "search_for_guess", partial(search_for_guess_node, llm=llm_strict)
 )
-workflow.add_node("general_chat", partial(general_chat, llm=llm))
+workflow.add_node("general_chat", partial(general_chat, llm=llm_creative))
 workflow.add_node(
-    "synthesis_response", partial(synthesis_response_node, llm=llm)
+    "synthesis_response", partial(synthesis_response_node, llm=llm_creative)
 )
 
 # 3. Точка входа

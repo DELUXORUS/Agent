@@ -9,7 +9,6 @@ logger = logging.getLogger("uvicorn")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Пытаемся подключиться к RabbitMQ с повторами (до 10 секунд)
     max_retries = 5
     for attempt in range(1, max_retries + 1):
         try:

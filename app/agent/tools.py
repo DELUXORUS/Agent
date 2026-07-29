@@ -4,8 +4,8 @@ from app.db.database import async_session_maker
 from app.db.models import Movie
 
 
-def generate_query_embedding(query: str) -> list[float]:
-    return embedder.get_embedding(query)
+async def generate_query_embedding(query: str) -> list[float]:
+    return await embedder.get_embedding(query)
 
 async def fetch_recommended_movies(
     user_id: int,

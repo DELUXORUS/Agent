@@ -1,23 +1,28 @@
-from datetime import date
-from sqlalchemy import BigInteger, Text, Float, Date, String, ForeignKey, Index
+from sqlalchemy import (
+    BigInteger, Text, Float, String,
+    ForeignKey, Index, Integer
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from pgvector.sqlalchemy import Vector
+
 
 class Base(DeclarativeBase):
     pass
 
-
 class Movie(Base):
     __tablename__ = "movies"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    overview: Mapped[str | None] = mapped_column(Text)
+    genres: Mapped[str | None] = mapped_column(String)
+    cast: Mapped[str | None] = mapped_column(Text)
+    release_date: Mapped[str | None] = mapped_column(String)
+    release_year: Mapped[int | None] = mapped_column(Integer)
+    vote_average: Mapped[float | None] = mapped_column(Float)
+    poster_path: Mapped[str | None] = mapped_column(String)
 
-    title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    overview: Mapped[str | None] = mapped_column(Text, nullable=True)
-    genres: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    release_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    vote_average: Mapped[float | None] = mapped_column(Float, nullable=True)
-    embedding: Mapped[list[float]] = mapped_column(Vector(384), nullable=False)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384))
 
     __table_args__ = (
         Index(
@@ -31,7 +36,6 @@ class Movie(Base):
             },  # Параметры графа HNSW
         ),
     )
-
 
 class UserMovieHistory(Base):
     __tablename__ = "user_movies_history"

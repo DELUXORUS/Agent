@@ -1,4 +1,5 @@
 import torch
+import asyncio
 from sentence_transformers import SentenceTransformer
 
 
@@ -10,16 +11,20 @@ class EmbedderService:
 
         self.model = SentenceTransformer(model_name, device=self.device)
 
-    def get_embedding(self, text: str) -> list[float]:
-        embedding = self.model.encode(
-            text, convert_to_numpy=True, show_progress_bar=False
+    async def get_embedding(self, text: str) -> list[float]:
+        embedding = await asyncio.to_thread(
+            self.model.encode,
+            text,
+            convert_to_numpy=True,
+            show_progress_bar=False
         )
         return embedding.tolist()
 
-    def get_embeddings(self, texts: list[str]) -> list[list[float]]:
-        embeddings = self.model.encode(
+    async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
+        embeddings = await asyncio.to_thread(
+            self.model.encode,
             texts,
-            batch_size=256,  # Оптимальный размер батча для GPU
+            batch_size=256,
             convert_to_numpy=True,
             show_progress_bar=False,
         )

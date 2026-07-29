@@ -25,42 +25,62 @@ async def seed_movies():
     t0 = time.perf_counter()
     df = pd.read_csv('data/movies.csv')
     df = df.sort_values(by="popularity", ascending=False).head(40000)
-    df["release_date"] = pd.to_datetime(df["release_date"]).dt.date
-    df = df.fillna('')
-    print(f"  └─ CSV прочитан за {time.perf_counter() - t0:.2f} сек.")
 
-    # 2. Формируем тексты
-    texts = (df['title'] + ": " + df['overview']).tolist()
+    # Заполняем NaN пустой строкой для текстовых полей
+    df["title"] = df["title"].fillna("")
+    df["overview"] = df["overview"].fillna("")
+    df["genres"] = df["genres"].fillna("")
+    df["cast"] = df["cast"].fillna("")
+    df["tagline"] = df["tagline"].fillna("")
 
-    # 3. Генерация векторов на GPU
-    print("\nГенерация эмбеддингов на GPU...")
+    print(f"CSV прочитан за {time.perf_counter() - t0:.2f} сек.")
+
+    # 2. Собираем единый контекстный текст для эмбеддинга
+    texts = (
+            "Title: " + df["title"] +
+            ". Tagline: " + df["tagline"] +
+            ". Genres: " + df["genres"] +
+            ". Cast: " + df["cast"] +
+            ". Overview: " + df["overview"]
+    ).tolist()
+
+    # 3. Генерация векторов (с поддержкой async/await)
+    print("\nГенерация эмбеддингов...")
     t_emb_start = time.perf_counter()
 
     EMBEDDING_BATCH_SIZE = 1024
     embeddings = []
 
-    with tqdm(total=len(texts), desc="  Векторизация", unit="текст") as pbar:
+    with tqdm(total=len(texts), desc="Векторизация", unit="текст") as pbar:
         for i in range(0, len(texts), EMBEDDING_BATCH_SIZE):
             batch_texts = texts[i: i + EMBEDDING_BATCH_SIZE]
-            batch_vecs = embedder.get_embeddings(batch_texts)
+            # Добавили await!
+            batch_vecs = await embedder.get_embeddings(batch_texts)
             embeddings.extend(batch_vecs)
             pbar.update(len(batch_texts))
 
     emb_time = time.perf_counter() - t_emb_start
     print(
-        f"  └─ Векторизация {len(texts)} текстов завершена за {emb_time:.2f} сек! ({len(texts) / emb_time:.1f} текстов/сек)")
+        f"Векторизация {len(texts)} текстов завершена за {emb_time:.2f} сек! ({len(texts) / emb_time:.1f} текстов/сек)"
+    )
 
-    # 4. Подготовка данных для asyncpg
+    # 4. Подготовка данных для asyncpg (с учетом cast и tagline)
     print("\nПодготовка данных для быстрой записи...")
     records = []
-    for row, vec in zip(df.itertuples(), embeddings):
+
+    # Конвертируем release_date аккуратно
+    release_dates = pd.to_datetime(df["release_date"], errors="coerce").dt.date
+
+    for row, rel_date, vec in zip(df.itertuples(), release_dates, embeddings):
         records.append((
             row.title,
             row.overview if row.overview else None,
             row.genres if row.genres else None,
-            row.release_date if row.release_date else None,
-            getattr(row, 'vote_average', None) if getattr(row, 'vote_average', None) != '' else None,
-            str(vec)  # Преобразуем вектор [0.1, ...] в строку
+            row.cast if row.cast else None,  # <-- Добавили cast
+            row.tagline if row.tagline else None,  # <-- Добавили tagline
+            rel_date if pd.notnull(rel_date) else None,
+            float(row.vote_average) if pd.notnull(getattr(row, 'vote_average', None)) else None,
+            str(vec)  # Преобразуем вектор [0.1, ...] в строку формата pgvector
         ))
 
     # 5. Высокоскоростной batch INSERT через драйвер asyncpg
@@ -69,15 +89,15 @@ async def seed_movies():
 
     raw_conn = await engine.raw_connection()
     try:
-        # Извлекаем оригинальное соединение asyncpg
         asyncpg_conn = raw_conn.driver_connection
 
+        # Включаем колонки cast и tagline в запрос
         insert_query = """
-                       INSERT INTO movies (title, overview, genres, release_date, vote_average, embedding)
-                       VALUES ($1, $2, $3, $4, $5, $6::vector) \
+                       INSERT INTO movies (title, overview, genres, cast, tagline, release_date, vote_average, \
+                                           embedding)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8::vector)
                        """
 
-        # Вставляем крупными порциями по 5000 записей
         DB_BATCH_SIZE = 5000
         with tqdm(total=len(records), desc="  Вставка в БД", unit="запись") as pbar:
             for i in range(0, len(records), DB_BATCH_SIZE):
@@ -86,15 +106,15 @@ async def seed_movies():
                 pbar.update(len(batch))
 
     finally:
-        raw_conn.close()
+        await raw_conn.close()
 
     db_time = time.perf_counter() - t_db_start
     total_time = time.perf_counter() - start_time
 
     print("\n" + "=" * 50)
-    print(f"⚡ 40 000 фильмов успешно забиты за {total_time:.2f} сек!")
-    print(f"  • Векторизация: {emb_time:.2f} сек")
-    print(f"  • Запись в БД:   {db_time:.2f} сек")
+    print(f"40 000 фильмов успешно записаны за {total_time:.2f} сек!")
+    print(f"Векторизация: {emb_time:.2f} сек")
+    print(f"Запись в БД:   {db_time:.2f} сек")
     print("=" * 50)
 
 
