@@ -1,0 +1,6 @@
+-r base.txt
+fastembed
+onnxruntime-gpu
+pandas
+numpy
+tqdm

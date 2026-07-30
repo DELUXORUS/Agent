@@ -1,56 +1,30 @@
-import torch
 import asyncio
-from sentence_transformers import SentenceTransformer
+from typing import List
+from loguru import logger
+from app.config import settings
+from fastembed import TextEmbedding
 
 
 class EmbedderService:
+    def __init__(self, model_name: str):
+        logger.info(f"EmbedderService запущен на ONNX Runtime (FastEmbed) | Модель: {model_name}")
+        self.model = TextEmbedding(model_name=model_name)
 
-    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"EmbedderService запущен на устройстве: {self.device}")
+    async def get_embedding(self, text: str) -> List[float]:
+        def _encode() -> List[float]:
+            # embed([text]) возвращает генератор, забираем первый элемент
+            gen = self.model.embed([text])
+            vec = next(gen)
+            return vec.tolist()
 
-        self.model = SentenceTransformer(model_name, device=self.device)
+        return await asyncio.to_thread(_encode)
 
-    async def get_embedding(self, text: str) -> list[float]:
-        embedding = await asyncio.to_thread(
-            self.model.encode,
-            text,
-            convert_to_numpy=True,
-            show_progress_bar=False
-        )
-        return embedding.tolist()
+    async def get_embeddings(self, texts: List[str], batch_size: int = 256) -> List[List[float]]:
+        def _encode_batch() -> List[List[float]]:
+            gen = self.model.embed(texts, batch_size=batch_size)
+            return [vec.tolist() for vec in gen]
 
-    async def get_embeddings(self, texts: list[str]) -> list[list[float]]:
-        embeddings = await asyncio.to_thread(
-            self.model.encode,
-            texts,
-            batch_size=256,
-            convert_to_numpy=True,
-            show_progress_bar=False,
-        )
-        return embeddings.tolist()
+        return await asyncio.to_thread(_encode_batch)
 
 
-embedder = EmbedderService()
-
-# from fastembed import TextEmbedding
-#
-#
-# class EmbedderService:
-#     def __init__(self, model_name: str = "BAAI/bge-small-en-v1.5"):
-#         print(f"EmbedderService запущен на ONNX Runtime (FastEmbed)...")
-#         # FastEmbed автоматически скачивает и запускает квантованную/ONNX версию модели
-#         self.model = TextEmbedding(model_name=model_name)
-#
-#     def get_embedding(self, text: str) -> list[float]:
-#         # fastembed принимает список и возвращает генератор, берем первый вектор
-#         embeddings_generator = self.model.embed([text])
-#         return next(embeddings_generator).tolist()
-#
-#     def get_embeddings(self, texts: list[str]) -> list[list[float]]:
-#         # embed преобразует батч текстов в генератор numpy-массивов
-#         embeddings_generator = self.model.embed(texts, batch_size=256)
-#         return [vec.tolist() for vec in embeddings_generator]
-#
-#
-# embedder = EmbedderService()
+embedder = EmbedderService(model_name=settings.EMBEDDER_MODEL)

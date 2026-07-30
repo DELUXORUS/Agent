@@ -42,14 +42,15 @@ services:
     container_name: agent_api
     restart: always
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    shm_size: '2gb' # ◄── Выделяем память под PyTorch / Tensor массивы
     ports:
       - "8000:8000"
+    environment:
+      - OMP_NUM_THREADS=2 # Ограничение потоков CPU для ONNX
     env_file:
       - .env
     volumes:
       - .:/app
-      - hf_cache:/root/.cache/huggingface # ◄── Кэш моделей, чтобы не скачивать заново
+      - fastembed_cache:/root/.cache/fastembed # Кэш ONNX моделей FastEmbed
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,19 +61,20 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-#    container_name: agent_handler
+    container_name: agent_handler # Раскомментировали имя
     restart: always
     command: python -m app.handler.handler
-    shm_size: '2gb' # ◄── Выделяем память под PyTorch / Tensor массивы
+    environment:
+      - OMP_NUM_THREADS=2 # Ограничение потоков CPU для ONNX
     env_file:
       - .env
     volumes:
       - .:/app
-      - hf_cache:/root/.cache/huggingface # ◄── Используем общий кэш моделей
+      - fastembed_cache:/root/.cache/fastembed # Общий кэш моделей
     depends_on:
       rabbitmq:
         condition: service_healthy
-      postgres: # ◄── Добавили ожидание PostgreSQL, так как handler вызывает DB Tools
+      postgres:
         condition: service_healthy
 
   ngrok:
@@ -90,4 +92,4 @@ services:
 
 volumes:
   pgdata:
-  hf_cache: # ◄── Именованный volume для кэширования PyTorch/HF моделей
+  fastembed_cache: # Именованный volume для кэша FastEmbed

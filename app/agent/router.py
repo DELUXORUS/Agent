@@ -8,11 +8,9 @@ def route_intent(state: AgentState):
 
     logger.info(f"ROUTER: Перенаправление по интенту -> '{intent}'")
 
-
-    if intent == "guess_movie":
-        return "parse_guess_filter"
-
-    elif intent == "recommend_movies":
-        return "parse_recommend_filter"
+    if intent == "recommend_movies":
+        return "search_for_recommended"
+    elif intent == "guess_movie":
+        return "search_for_guess"
 
     return "general_chat"

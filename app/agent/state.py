@@ -5,20 +5,41 @@ from pydantic import BaseModel, Field
 from app.schemas import MovieDTO
 
 class MovieFilter(BaseModel):
-    query_text: str = Field(
-        description="Очищенное текстовое описание сюжета/запроса для поиска векторов (на английском)."
+    query_text: str | None = Field(
+        default=None,
+        description=(
+            "Очищенное текстовое описание сюжета, атмосферы или темы для векторного поиска (ПЕРЕВОД НА АНГЛИЙСКИЙ). "
+            "Например: 'space exploration survival on unknown planet'."
+        ),
+    )
+    is_semantic_search_needed: bool = Field(
+        default=True,
+        description="Флаг: True, если пользователь описывает сюжет или тему; False, если запрос только по точным фильтрам (актер, жанр, рейтинг).",
+    )
+
+    title: str | None = Field(
+        default=None,
+        description="Конкретное название фильма, если пользователь явно назвал его.",
     )
     genre: str | None = Field(
         default=None,
-        description="Жанр фильма (только для рекомендаций, например: Action, Sci-Fi, Drama).",
+        description="Жанр фильма на английском (например: Action, Sci-Fi, Drama, Comedy, Horror).",
+    )
+    credits: str | None = Field(
+        default=None,
+        description="Имя/фамилия актера или режиссера на английском (соответствует колонке credits в БД, например: 'Leonardo DiCaprio').",
+    )
+    keywords: str | None = Field(
+        default=None,
+        description="Ключевые слова или теги темы на английском (например: 'time travel', 'superhero', 'zombie').",
     )
     min_vote_average: float | None = Field(
         default=None,
-        description="Минимальный рейтинг фильма от 1.0 до 10.0 (только для рекомендаций).",
+        description="Минимальный рейтинг фильма от 1.0 до 10.0 (соответствует vote_average).",
     )
-    is_semantic_search_needed: bool = Field(
+    release_date: int | None = Field(
         default=None,
-        description="Флаг для определения необходимости создания вектора смысла для запроса.",
+        description="Год выпуска фильма, если указан конкретный год (например: 2010).",
     )
 
 class IntentClassification(BaseModel):
@@ -28,6 +49,15 @@ class IntentClassification(BaseModel):
             "Выбери 'recommend_movies', если пользователь просит посоветовать/подобрать список фильмов под жанр/настроение. "
             "Выбери 'general_chat' для остальных вопросов и приветствий."
         )
+    )
+
+class UnifiedParseResult(BaseModel):
+    intent: Literal["guess_movie", "recommend_movies", "general_chat"] = Field(
+        description="Интент пользователя: guess_movie, recommend_movies или general_chat"
+    )
+    filter: MovieFilter = Field(
+        default_factory=MovieFilter,
+        description="Фильтры и англоязычный векторный контекст query_text"
     )
 
 class AgentState(TypedDict):

@@ -3,6 +3,10 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import UserMovieHistory
 from app.schemas import MovieDTO
+from app.agent.state import MovieFilter
+
+
+#ОТРЕДАКТИРОВАТЬ
 
 
 class Operations:
@@ -14,7 +18,7 @@ class Operations:
         result = await self.session.execute(stmt)
         return result.scalar() or 0
 
-    async def get_user_watched_movies(self, user_id: int) -> list(MovieDTO):
+    async def get_user_watched_movies(self, user_id: int) -> list[MovieDTO]:
         stmt = (
             select(Movie)
             .join(UserMovieHistory, UserMovieHistory.movie_id == Movie.id)
@@ -33,27 +37,54 @@ class Operations:
 
     async def search_similar_movies_with_filters(
             self,
+            movie_filter: MovieFilter,
             query_vector: list[float] | None = None,
             limit: int = 3,
-            min_vote_average: float | None = None,
-            genre: str | None = None,
             exclude_movie_ids: list[int] | None = None,
-    ) -> list(MovieDTO):
+    ) -> list[MovieDTO]:                                                #ЗАМЕНИТЬ ILIKE
         stmt = select(Movie)
 
         if exclude_movie_ids:
             stmt = stmt.where(Movie.id.not_in(exclude_movie_ids))
 
-        if min_vote_average is not None:
-            stmt = stmt.where(Movie.vote_average >= min_vote_average)
+        if movie_filter.min_vote_average is not None:
+            stmt = stmt.where(Movie.vote_average >= movie_filter.min_vote_average)
 
-        if genre:
-            stmt = stmt.where(Movie.genres.ilike(f"%{genre}%"))
+        if movie_filter.genre:
+            stmt = stmt.where(Movie.genres.ilike(f"%{movie_filter.genre}%"))
 
-        if query_vector is not None:
-            stmt = stmt.order_by(Movie.embedding.cosine_distance(query_vector))
+        if movie_filter.credits:
+            stmt = stmt.where(Movie.credits.ilike(f"%{movie_filter.credits}%"))
+
+        if movie_filter.release_date:
+            # Если release_date в модели хранит Date/String, сравниваем по году
+            stmt = stmt.where(func.extract('year', Movie.release_date) == movie_filter.release_date)
+
+        # 3. Базовая санитария данных (отсекаем мусорные карточки без описания/каста)
+        stmt = stmt.where(
+            Movie.overview.isnot(None),
+            func.length(Movie.overview) > 30,
+            Movie.credits.isnot(None)
+        )
+
+        # 4. Логика сортировки и поиска
+        if query_vector is not None and movie_filter.is_semantic_search_needed:
+            # Векторный поиск: главное — смысл, затем рейтинг
+            stmt = stmt.order_by(
+                Movie.embedding.cosine_distance(query_vector),
+                Movie.vote_average.desc().nulls_last()
+            )
         else:
-            stmt = stmt.order_by(Movie.vote_average.desc())
+            # Если вектора нет (чистый фильтр):
+            # Если пользователь НЕ задавал минимальный рейтинг сам — страховка >= 6.0
+            if movie_filter.min_vote_average is None:
+                stmt = stmt.where(Movie.vote_average >= 6.0)
+
+            # Сортируем по популярности/рейтингу и дате
+            stmt = stmt.order_by(
+                Movie.vote_average.desc().nulls_last(),
+                Movie.release_date.desc().nulls_last()
+            )
 
         stmt = stmt.limit(limit)
         result = await self.session.execute(stmt)
@@ -67,7 +98,7 @@ class Operations:
             text_query: str,
             limit: int = 3,
             k: int = 60,  # Стандартная константа для RRF
-    ) -> list[MovieDTO]:
+    ) -> list[MovieDTO]:                                                        #ЗАМЕНИТЬ ILIKE
         # 1. Достаем Top-10 кандидатов по векторному поиску
         vector_stmt = (
             select(Movie)
