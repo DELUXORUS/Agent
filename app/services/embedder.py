@@ -12,7 +12,6 @@ class EmbedderService:
 
     async def get_embedding(self, text: str) -> List[float]:
         def _encode() -> List[float]:
-            # embed([text]) возвращает генератор, забираем первый элемент
             gen = self.model.embed([text])
             vec = next(gen)
             return vec.tolist()
@@ -27,4 +26,4 @@ class EmbedderService:
         return await asyncio.to_thread(_encode_batch)
 
 
-embedder = EmbedderService(model_name=settings.EMBEDDER_MODEL)
+embedder = EmbedderService(model_name=settings.EMBEDDER_MODEL_NAME)

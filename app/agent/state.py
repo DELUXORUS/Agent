@@ -1,70 +1,86 @@
-from typing import Annotated, Literal, TypedDict
+from typing import Annotated, Literal, TypedDict, Optional
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 from app.schemas import MovieDTO
+from enum import Enum
+
+
+class IntentEnum(str, Enum):
+    GUESS_MOVIE = "guess_movie"
+    RECOMMEND_MOVIES = "recommend_movies"
+    GENERAL_CHAT = "general_chat"
 
 class MovieFilter(BaseModel):
-    query_text: str | None = Field(
-        default=None,
-        description=(
-            "Очищенное текстовое описание сюжета, атмосферы или темы для векторного поиска (ПЕРЕВОД НА АНГЛИЙСКИЙ). "
-            "Например: 'space exploration survival on unknown planet'."
-        ),
-    )
     is_semantic_search_needed: bool = Field(
         default=True,
-        description="Флаг: True, если пользователь описывает сюжет или тему; False, если запрос только по точным фильтрам (актер, жанр, рейтинг).",
-    )
-
-    title: str | None = Field(
-        default=None,
-        description="Конкретное название фильма, если пользователь явно назвал его.",
-    )
-    genre: str | None = Field(
-        default=None,
-        description="Жанр фильма на английском (например: Action, Sci-Fi, Drama, Comedy, Horror).",
-    )
-    credits: str | None = Field(
-        default=None,
-        description="Имя/фамилия актера или режиссера на английском (соответствует колонке credits в БД, например: 'Leonardo DiCaprio').",
-    )
-    keywords: str | None = Field(
-        default=None,
-        description="Ключевые слова или теги темы на английском (например: 'time travel', 'superhero', 'zombie').",
-    )
-    min_vote_average: float | None = Field(
-        default=None,
-        description="Минимальный рейтинг фильма от 1.0 до 10.0 (соответствует vote_average).",
-    )
-    release_date: int | None = Field(
-        default=None,
-        description="Год выпуска фильма, если указан конкретный год (например: 2010).",
-    )
-
-class IntentClassification(BaseModel):
-    intent: Literal["guess_movie", "recommend_movies", "general_chat"] = Field(
         description=(
-            "Выбери 'guess_movie', если пользователь описывает сюжет конкретного фильма, который пытается вспомнить/угадать. "
-            "Выбери 'recommend_movies', если пользователь просит посоветовать/подобрать список фильмов под жанр/настроение. "
-            "Выбери 'general_chat' для остальных вопросов и приветствий."
-        )
+            "True, если в запросе есть сюжет, атмосфера или просьба найти 'похожие на фильм X'. "
+            "False, если пользователь указал только точные фильтры без темы/сюжета (например, 'посоветуй боевик с рейтингом от 8')."
+        ),
     )
+    query_text: Optional[str] = Field(
+        default=None,
+        description=(
+            "Очищенный текст сюжета/атмосферы для векторного поиска (ОБЯЗАТЕЛЬНО НА АНГЛИЙСКОМ). Удали мусор ('привет', 'посоветуй'). "
+            "QUERY EXPANSION: Если запрос 'похожие на [Фильм X]', сгенерируй детальное описание сюжета, тем, атмосферы и стиля Фильма X на английском. "
+            "Если 'is_semantic_search_needed' == False — установи None."
+        ),
+    )
+    title: Optional[str] = Field(
+        default=None,
+        description="Название конкретного фильма или фильма-ориентира, упомянутого пользователем (например, 'The Matrix', 'The Game'). Иначе None.",
+    )
+    genre: Optional[str] = Field(
+        default=None,
+        description=(
+            "Жанр строго на АНГЛИЙСКОМ с заглавной буквы (Action, Adventure, Animation, Comedy, Crime, Documentary, "
+            "Drama, Family, Fantasy, History, Horror, Music, Mystery, Romance, Science Fiction, Thriller, TV Movie, War, Western)."
+        ),
+    )
+    credits: Optional[str] = Field(
+        default=None,
+        description=(
+            "Имя/фамилия актера или режиссера на АНГЛИЙСКОМ, ТОЛЬКО если пользователь прямо ищет фильмы С ИХ УЧАСТИЕМ "
+            "(например: 'Leonardo DiCaprio', 'Christopher Nolan'). "
+            "ВНИМАНИЕ: НЕ заполняй это поле режиссером фильма-образца при запросах 'похожие на [Фильм X]'!"
+        ),
+    )
+    keywords: Optional[str] = Field(
+        default=None,
+        description="1-2 точечных тега или ключевых слова на АНГЛИЙСКОМ (например: 'zombie', 'time travel', 'mafia'). Иначе None.",
+    )
+    min_vote_average: Optional[float] = Field(
+        default=None,
+        description="Минимальный рейтинг фильма числом от 1.0 до 10.0, если есть явное требование в запросе ('от 7.5'). Иначе None.",
+    )
+    release_date: Optional[int] = Field(
+        default=None,
+        description=(
+            "Год выпуска фильма 4-значным числом, если пользователь явно затребовал конкретный год (например: 2010). "
+            "ВНИМАНИЕ: НЕ заполняй это поле годом фильма-образца при запросах 'похожие на [Фильм X]'!"
+        ),
+    )
+
 
 class UnifiedParseResult(BaseModel):
-    intent: Literal["guess_movie", "recommend_movies", "general_chat"] = Field(
-        description="Интент пользователя: guess_movie, recommend_movies или general_chat"
+    intent: IntentEnum = Field(
+        description=(
+            "Намерение пользователя: "
+            "'guess_movie' — пытается вспомнить конкретный фильм по описанию сюжета/сцены; "
+            "'recommend_movies' — просит подобрать подборку фильмов по жанру, теме или сходству; "
+            "'general_chat' — приветствие, оффтоп, вопрос про бота."
+        )
     )
     filter: MovieFilter = Field(
-        default_factory=MovieFilter,
-        description="Фильтры и англоязычный векторный контекст query_text"
+        description="Спрогнозированный объект фильтрации на основе анализа запроса."
     )
 
 class AgentState(TypedDict):
-    messages: Annotated[list[BaseMessage], add_messages]  # История сообщений
-    user_id: int  # Telegram ID пользователя
+    messages: Annotated[list[BaseMessage], add_messages]
+    user_id: int
     intent: Literal["guess_movie", "recommend_movies", "general_chat"] | None
-    parsed_filter: MovieFilter | None  # Результат работы Structured Output
-    found_movies: list[MovieDTO]  # Список найденных объектов фильмов из Postgres
-    final_response: str  # Готовый текст ответа для Telegram
+    parsed_filter: MovieFilter | None
+    found_movies: list[MovieDTO]
+    final_response: str
     error_reason: str

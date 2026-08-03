@@ -1,27 +1,22 @@
+# app/handler/main.py (твой handler)
 import time
-import httpx
-import logging
 import asyncio
+import logging
 from faststream import FastStream
 from langchain_core.messages import HumanMessage
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from app.agent.graph import graph
 from app.agent.state import AgentState
-from app.config import settings
 from app.core.broker import broker
+from app.db.database import async_session_maker
+from app.db.operations import Operations
+from app.services.telegram import telegram_service
 
 logger = logging.getLogger("uvicorn")
-
 app = FastStream(broker)
 
 
-async def generate_response(text: str, username: str, user_id: int) -> str:
+async def generate_response(text: str, username: str, user_id: int) -> tuple[str, list]:
     logger.info(f"Запуск LangGraph агента для @{username} (id: {user_id}): '{text}'")
 
     initial_state: AgentState = {
@@ -39,55 +34,22 @@ async def generate_response(text: str, username: str, user_id: int) -> str:
     try:
         final_state = await graph.ainvoke(initial_state)
         response_text = final_state.get("final_response")
+        found_movies = final_state.get("found_movies", [])
         logger.info(f"Шаг поиска выполнен за {time.perf_counter() - start_time:.2f} сек")
 
         if not response_text:
-            logger.warning("Граф завершился без заполненного final_response")
-            return "К сожалению, не удалось сформировать ответ. Попробуй ещё раз!"
+            return "К сожалению, не удалось сформировать ответ. Попробуй ещё раз!", []
 
-        logger.info(f"Ответ агента для @{username} успешно сгенерирован")
-        return response_text
+        return response_text, found_movies
 
     except Exception as e:
         logger.error(f"Ошибка при выполнении LangGraph: {e}", exc_info=True)
-        return "Произошла ошибка при обработке запроса. Попробуй позже!"
-
-
-class TelegramRateLimitError(Exception):
-    def __init__(self, retry_after: int):
-        self.retry_after = retry_after
-
-
-@retry(
-    stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-    retry=retry_if_exception_type((httpx.HTTPError, TelegramRateLimitError)),
-    reraise=True,
-)
-async def send_telegram_message(chat_id: int, text: str) -> None:
-    url = f"https://api.telegram.org/bot{settings.BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "HTML",
-    }
-
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(url, json=payload)
-
-        if response.status_code == 429:
-            retry_after = response.json().get("parameters", {}).get("retry_after", 1)
-            logger.warning(f"Telegram Rate Limit (429). Ожидание {retry_after} сек...")
-            await asyncio.sleep(retry_after)
-            raise TelegramRateLimitError(retry_after)
-
-        response.raise_for_status()
+        return "Произошла ошибка при обработке запроса. Попробуй позже!", []
 
 
 @broker.subscriber("telegram_messages")
 async def handle_telegram_messages(message: dict):
     if not message or not message.get("text"):
-        logger.info("Получено сообщение без текста (стикер/фото/пусто), пропуск.")
         return
 
     text = message["text"]
@@ -96,19 +58,72 @@ async def handle_telegram_messages(message: dict):
     chat_id = message.get("chat_id")
 
     if not chat_id:
-        logger.error("В сообщении отсутствует chat_id!")
         return
 
-    logger.info(f"Обработка сообщения от @{username}: '{text}'")
-
-    reply_text = await generate_response(text, username, user_id)
+    reply_text, found_movies = await generate_response(text, username, user_id)
+    keyboard = telegram_service.make_movies_keyboard(found_movies)
 
     try:
-        # 🐛 ИСПРАВЛЕНО: Вызываем верное имя функции send_telegram_message
-        await send_telegram_message(chat_id, reply_text)
+        await telegram_service.send_message(chat_id, reply_text, reply_markup=keyboard)
         logger.info(f"Ответ успешно отправлен в chat_id {chat_id}")
     except Exception as e:
         logger.error(f"Не удалось отправить ответ в chat_id {chat_id}: {e}")
+
+
+@broker.subscriber("telegram_callbacks")
+async def handle_telegram_callbacks(callback_data: dict):
+    cb_id = callback_data.get("callback_query_id")
+    cb_text = callback_data.get("callback_data", "")
+    user_id = callback_data.get("user_id")
+    chat_id = callback_data.get("chat_id")
+    message_id = callback_data.get("message_id")
+
+    if cb_text == "ignore":
+        if cb_id:
+            await telegram_service.answer_callback_query(cb_id, "Этот фильм уже отмечен!")
+        return
+
+    if not cb_text.startswith("watch:"):
+        return
+
+    try:
+        _, movie_id_str, idx_str = cb_text.split(":")
+        movie_id = int(movie_id_str)
+    except ValueError:
+        logger.warning(f"Некорректный формат callback_data: {cb_text}")
+        return
+
+
+    async with async_session_maker() as session:
+        ops = Operations(session)
+        await ops.add_movies_to_user_history(user_id=user_id, movie_ids=[movie_id])
+
+
+    if cb_id:
+        await telegram_service.answer_callback_query(
+            cb_id, f"Фильм №{idx_str} добавлен в просмотренные!"
+        )
+
+
+    reply_markup = callback_data.get("reply_markup") or callback_data.get("message", {}).get("reply_markup", {})
+    current_keyboard = reply_markup.get("inline_keyboard", [])
+
+    if current_keyboard and chat_id and message_id:
+        new_keyboard = []
+        for row in current_keyboard:
+            new_row = []
+            for btn in row:
+                if btn.get("callback_data") == cb_text:
+                    new_row.append({"text": f"✅ №{idx_str}", "callback_data": "ignore"})
+                else:
+                    new_row.append(btn)
+            new_keyboard.append(new_row)
+
+        await telegram_service.edit_reply_markup(
+            chat_id=chat_id,
+            message_id=message_id,
+            reply_markup={"inline_keyboard": new_keyboard}
+        )
 
 
 async def main():

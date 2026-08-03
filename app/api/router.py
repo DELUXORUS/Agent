@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, Response, status
 
 from app.core.broker import broker
-from app.schemas import TelegramMessageTask
+from app.schemas import TelegramCallbackTask, TelegramMessageTask
 
-router = APIRouter(prefix="/webhook",
-                   tags=["Telegram Webhook"])
+router = APIRouter(prefix="/webhook", tags=["Telegram Webhook"])
 
 
 @router.post("/telegram")
@@ -13,9 +12,9 @@ async def telegram_webhook(data: dict):
         msg = data["message"]
 
         username = (
-                msg["from"].get("username")
-                or msg["from"].get("first_name")
-                or "User"
+            msg["from"].get("username")
+            or msg["from"].get("first_name")
+            or "User"
         )
 
         task = TelegramMessageTask(
@@ -27,5 +26,19 @@ async def telegram_webhook(data: dict):
         )
 
         await broker.publish(task, queue="telegram_messages")
+
+    elif "callback_query" in data:
+        cb = data["callback_query"]
+        msg = cb.get("message", {})
+
+        callback_task = TelegramCallbackTask(
+            user_id=cb["from"]["id"],
+            chat_id=msg.get("chat", {}).get("id", 0),
+            message_id=msg.get("message_id", 0),
+            callback_query_id=cb["id"],
+            callback_data=cb.get("data", ""),
+            reply_markup=msg.get("reply_markup", {}),
+        )
+        await broker.publish(callback_task, queue="telegram_callbacks")
 
     return Response(status_code=status.HTTP_200_OK)

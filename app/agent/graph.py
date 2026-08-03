@@ -23,7 +23,6 @@ llm_strict = ChatOpenAI(
     max_retries=3
 )
 
-# Творческая модель для форматирования финального ответа и general_chat
 llm_creative = ChatOpenAI(
     model=settings.LLM_MODEL_NAME,
     temperature=settings.LLM_CREATIVE_TEMPERATURE,
@@ -34,9 +33,6 @@ llm_creative = ChatOpenAI(
 
 workflow = StateGraph(AgentState)
 
-# workflow.add_node(
-#     "intent_classifier", partial(intent_classification_node, llm=llm_strict)
-# )
 workflow.add_node("unified_parser", partial(unified_parser_node, llm=llm_strict))
 workflow.add_node("search_for_recommended", partial(search_for_recommended_node))
 workflow.add_node("search_for_guess", partial(search_for_guess_node))
@@ -45,18 +41,7 @@ workflow.add_node(
     "synthesis_response", partial(synthesis_response_node, llm=llm_creative)
 )
 
-# workflow.set_entry_point("intent_classifier")
 workflow.set_entry_point("unified_parser")
-
-# workflow.add_conditional_edges(
-#     source="intent_classifier",
-#     path=route_intent,
-#     path_map={
-#         "parse_guess_filter": "search_for_guess",
-#         "parse_recommend_filter": "search_for_recomended",
-#         "general_chat": "general_chat",
-#     },
-# )
 workflow.add_conditional_edges(
     "unified_parser",
     route_intent,

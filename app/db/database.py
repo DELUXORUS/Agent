@@ -10,16 +10,16 @@ async def init_db():
 
 engine = create_async_engine(
     settings.database_url,
-    pool_size=20,         # Держим 20 постоянных труб
-    max_overflow=10,      # В пиках можем расширяться до 30
-    pool_timeout=30,      # Ждем до 30 секунд свободного коннекта
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
     echo=True
 )
 
 async_session_maker = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
-    expire_on_commit=False,  # Предотвращает проблемы с обращением к объектам после commit
+    expire_on_commit=False,
 )
 
 async def get_db():

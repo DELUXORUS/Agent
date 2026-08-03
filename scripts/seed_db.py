@@ -65,15 +65,6 @@ async def seed_movies():
     t_emb_start = time.perf_counter()
 
     embeddings = await embedder.get_embeddings(texts, batch_size=512)
-    # EMBEDDING_BATCH_SIZE = 1024
-    # embeddings = []
-
-    # with tqdm(total=len(texts), desc="Векторизация", unit="текст") as pbar:
-    #     for i in range(0, len(texts), EMBEDDING_BATCH_SIZE):
-    #         batch_texts = texts[i: i + EMBEDDING_BATCH_SIZE]
-    #         batch_vecs = await embedder.get_embeddings(batch_texts)
-    #         embeddings.extend(batch_vecs)
-    #         pbar.update(len(batch_texts))
 
     emb_time = time.perf_counter() - t_emb_start
     print(

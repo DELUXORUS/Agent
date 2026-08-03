@@ -4,7 +4,7 @@ from typing import Any
 from langchain_core.messages import SystemMessage
 from langchain_openai import ChatOpenAI
 
-from app.agent.state import AgentState, IntentClassification, MovieFilter, UnifiedParseResult
+from app.agent.state import AgentState, MovieFilter, UnifiedParseResult
 from app.agent.tools import (
     fetch_guessed_movie_hybrid,
     fetch_recommended_movies,
@@ -13,23 +13,8 @@ from app.agent.tools import (
 from app.schemas import MovieDTO
 from app.agent.load_prompts import prompts
 
+
 logger = logging.getLogger("uvicorn")
-
-
-# async def intent_classification_node(state: AgentState, llm: ChatOpenAI) -> dict[str, Any]:
-#     logger.info("Классификация интента...")
-#
-#     structured_llm = llm.with_structured_output(IntentClassification)
-#     messages = [SystemMessage(content=prompts["SYSTEM_INTENT_PROMPT"])] + state["messages"]
-#
-#     try:
-#         result: IntentClassification = await structured_llm.ainvoke(messages)
-#         logger.info(f"Интент классифицирован: {result.intent}")
-#         return {"intent": result.intent}
-#
-#     except Exception as e:
-#         logger.error(f"Ошибка в intent_classification_node: {e}. Фолбэк на general_chat")
-#         return {"intent": "general_chat"}
 
 
 async def unified_parser_node(state: AgentState, llm: ChatOpenAI) -> dict[str, Any]:
@@ -50,7 +35,6 @@ async def unified_parser_node(state: AgentState, llm: ChatOpenAI) -> dict[str, A
         }
     except Exception as e:
         logger.error(f"Ошибка в unified_parser_node: {e}")
-        # Безопасный фоллбэк
         return {
             "intent": "general_chat",
             "parsed_filter": MovieFilter(),
@@ -58,19 +42,6 @@ async def unified_parser_node(state: AgentState, llm: ChatOpenAI) -> dict[str, A
 
 
 async def search_for_recommended_node(state: AgentState) -> dict[str, Any]:
-    # last_user_message = state["messages"][-1].content
-    #
-    # structured_llm = llm.with_structured_output(MovieFilter)
-    # messages = [SystemMessage(content=prompts["SYSTEM_RECOMMEND_PARSER_PROMPT"])] + state["messages"]
-    #
-    # try:
-    #     filters: MovieFilter = await structured_llm.ainvoke(messages)
-    # except Exception as e:
-    #     logger.error(f"Ошибка при парсинге рекомендаций: {e}")
-    #     filters = MovieFilter(
-    #         is_semantic_search_needed=True,
-    #         query_text=last_user_message,
-    #     )
     filters: MovieFilter = state["parsed_filter"]
 
     query_vector = None
@@ -96,22 +67,8 @@ async def search_for_recommended_node(state: AgentState) -> dict[str, Any]:
 
 
 async def search_for_guess_node(state: AgentState) -> dict[str, Any]:
-    # last_user_message = state["messages"][-1].content
-    #
-    # structured_llm = llm.with_structured_output(MovieFilter)
-    # messages = [SystemMessage(content=prompts["SYSTEM_GUESS_PARSER_PROMPT"])] + state["messages"]
-    #
-    # try:
-    #     filters: MovieFilter = await structured_llm.ainvoke(messages)
-    # except Exception as e:
-    #     logger.error(f"Ошибка при парсинге сюжета: {e}")
-    #     filters = MovieFilter(
-    #         is_semantic_search_needed=True,
-    #         query_text=last_user_message,
-    #     )
     filters: MovieFilter = state["parsed_filter"]
 
-    # Защита от слишком короткого/пустого описания
     if (
             not filters.is_semantic_search_needed
             or not filters.query_text
@@ -157,7 +114,6 @@ async def general_chat(state: AgentState, llm: ChatOpenAI) -> dict[str, Any]:
 
 
 async def synthesis_response_node(state: AgentState, llm: ChatOpenAI) -> dict[str, Any]:
-    # 1. Если сработал Guardrail в угадывании (слишком мало информации)
     if state.get("error_reason") == "insufficient_information":
         return {
             "final_response": (
@@ -169,7 +125,6 @@ async def synthesis_response_node(state: AgentState, llm: ChatOpenAI) -> dict[st
 
     found_movies: list[MovieDTO] = state.get("found_movies", [])
 
-    # 2. Если поиск не дал результатов
     if not found_movies:
         return {
             "final_response": (
@@ -178,10 +133,8 @@ async def synthesis_response_node(state: AgentState, llm: ChatOpenAI) -> dict[st
             )
         }
 
-    # 3. Подготавливаем контекст из Pydantic DTO объектов
     movies_context_list = []
     for m in found_movies:
-        # m.release_date у нас гарантированно строка благодаря сериализатору в MovieDTO
         year = m.release_date[:4] if m.release_date else "Н/Д"
         rating = f"{m.vote_average:.1f}" if m.vote_average else "Н/Д"
         genres = m.genres if m.genres else "Н/Д"

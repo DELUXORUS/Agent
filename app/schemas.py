@@ -1,13 +1,23 @@
 from datetime import date
-from typing import Optional
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel, ConfigDict,
+    Field, field_validator
+)
 
 class TelegramMessageTask(BaseModel):
-    user_id: int = Field(description="Telegram user ID")
-    username: str = Field(description="Telegram username")
-    chat_id: int = Field(description="Telegram chat ID")
-    message_id: int = Field(description="Message ID")
-    text: str = Field(description="User`s text")
+    user_id: int
+    username: str
+    chat_id: int
+    message_id: int
+    text: str
+
+class TelegramCallbackTask(BaseModel):
+    user_id: int
+    chat_id: int
+    message_id: int
+    callback_query_id: str
+    callback_data: str
+    reply_markup: dict | None = None
 
 class MovieDTO(BaseModel):
     id: int
@@ -16,12 +26,10 @@ class MovieDTO(BaseModel):
     genres: str | None = None
     credits: str | None = None
     tagline: str | None = None
-    release_date: str | None = None  # <-- Здесь всегда будет строка
+    release_date: str | None = None
     vote_average: float | None = None
     keywords: str | None = None
 
-    # Это ключевой флаг в Pydantic V2!
-    # Он позволяет автоматически конвертировать модель SQLAlchemy в Pydantic DTO
     model_config = ConfigDict(from_attributes=True)
 
     @field_validator("release_date", mode="before")

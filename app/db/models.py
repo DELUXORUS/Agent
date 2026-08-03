@@ -42,11 +42,5 @@ class UserMovieHistory(Base):
     __tablename__ = "user_movies_history"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-
-    # Telegram ID пользователя (например, 123456789)
-    # Делаем index=True, чтобы мгновенно находить историю конкретного юзера
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
-
-    # Внешний ключ на ID фильма из таблицы "movies"
     movie_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("movies.id", ondelete="CASCADE"), nullable=False)
-    # watched_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
