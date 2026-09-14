@@ -1,44 +1,35 @@
 import logging
 from typing import Any
 
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_openai import ChatOpenAI
-
-from app.agent.state import AgentState, MovieFilter, UnifiedParseResult
+from app.agent.state import AgentState
 from app.agent.tools import (
     fetch_guessed_movie_hybrid,
     fetch_recommended_movies,
     generate_query_embedding,
 )
 from app.schemas import MovieDTO
+from schemas import MovieQueryPlan
 from app.agent.load_prompts import prompts
 
 
 logger = logging.getLogger("uvicorn")
 
 
-async def unified_parser_node(state: AgentState, llm: ChatOpenAI) -> dict[str, Any]:
-    logger.info("Единый парсинг интента и фильтров (1 вызов LLM)...")
+async def parser_query_node(state: AgentState, llm: ChatOpenAI):
+    structed_output_llm = llm.with_structured_output(MovieQueryPlan)
 
-    raw_messages = state.get("messages") or []
+    messages = [
+        SystemMessage(content=prompts["SYSTEM_PARSER_QUERY_PROMPT"]),
+        HumanMessage(content=state['user_query'])
+    ]
 
-    structured_llm = llm.with_structured_output(UnifiedParseResult)
-    messages = [SystemMessage(content=prompts["SYSTEM_UNIFIED_PARSER_PROMPT"])] + list(raw_messages)
+    query_plan: MovieQueryPlan = await structed_output_llm.invoke(messages)
 
-    try:
-        parsed: UnifiedParseResult = await structured_llm.ainvoke(messages)
-        logger.info(f"Интент: {parsed.intent} | Filter: {parsed.filter}")
-
-        return {
-            "intent": parsed.intent,
-            "parsed_filter": parsed.filter,
-        }
-    except Exception as e:
-        logger.error(f"Ошибка в unified_parser_node: {e}")
-        return {
-            "intent": "general_chat",
-            "parsed_filter": MovieFilter(),
-        }
+    return {
+        'query_plan': query_plan,
+    }
 
 
 async def search_for_recommended_node(state: AgentState) -> dict[str, Any]:

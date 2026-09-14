@@ -1,4 +1,3 @@
-# app/handler/main.py (твой handler)
 import time
 import asyncio
 import logging

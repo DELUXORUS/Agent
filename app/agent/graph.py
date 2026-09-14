@@ -1,7 +1,6 @@
 from functools import partial
 from app.agent.nodes import (
     general_chat,
-    # intent_classification_node,
     unified_parser_node,
     search_for_guess_node,
     search_for_recommended_node,
@@ -10,7 +9,7 @@ from app.agent.nodes import (
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 
-from app.agent.router import route_intent
+from app.agent.routing import route_intent
 from app.agent.state import AgentState
 from app.config import settings
 
@@ -46,9 +45,9 @@ workflow.add_conditional_edges(
     "unified_parser",
     route_intent,
     {
-        "search_for_recommended": "search_for_recommended",
-        "search_for_guess": "search_for_guess",
-        "general_chat": "general_chat",
+        "recommend": "search_movies",
+        "guess_movie": "search_movies",
+        "chat": "general_chat",
     }
 )
 
