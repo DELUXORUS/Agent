@@ -1,7 +1,7 @@
 from typing import TypedDict
 from typing_extensions import Required, NotRequired
 
-from app.agent.schemas import MovieQueryPlan
+from app.agent.schema import MovieQueryPlan
 from app.schemas import MovieDTO
 
 
