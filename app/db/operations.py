@@ -1,63 +1,135 @@
-from sqlalchemy import func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from datetime import date
 
 from app.schemas import MovieDTO
+
 from app.db.models import Movie
 from app.db.models import UserMovieHistory
+from app.db.filters import MovieFilters, apply_movie_filters
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 
-#ОТРЕДАКТИРОВАТЬ
+def build_movie_conditions(
+    filters: MovieFilters,
+) -> list[ColumnElement[bool]]:
+    conditions: list[ColumnElement[bool]] = []
+
+    if filters.year_min is not None:
+        conditions.append(
+            Movie.release_date >= date(filters.year_min, 1, 1)
+        )
+
+    if filters.year_max is not None:
+        conditions.append(
+            Movie.release_date <= date(filters.year_max, 12, 31)
+        )
+
+    if filters.rating_min is not None:
+        conditions.append(
+            Movie.vote_average >= filters.rating_min
+        )
+
+    if filters.rating_max is not None:
+        conditions.append(
+            Movie.vote_average <= filters.rating_max
+        )
+
+    if filters.excluded_movie_ids:
+        conditions.append(
+            Movie.id.not_in(filters.excluded_movie_ids)
+        )
+
+    return conditions
+
 
 
 class Operations:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_movies_count(self) -> int:
-        stmt = select(func.count()).select_from(Movie)
-        result = await self.session.execute(stmt)
-        return result.scalar() or 0
 
-    async def get_user_watched_movie_ids(self, user_id: int) -> list[int]:
-        stmt = select(UserMovieHistory.movie_id).where(UserMovieHistory.user_id == user_id)
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
-
-    async def get_user_watched_movies(self, user_id: int) -> list[MovieDTO]:
+    async def find_movie_by_title(
+        self,
+        title: str
+    ) -> MovieDTO | None:
         stmt = (
             select(Movie)
-            .join(UserMovieHistory, UserMovieHistory.movie_id == Movie.id)
+            .where(Movie.title == title)
+        )
+
+        result = await self.session.execute(stmt)
+
+        movie = result.scalar_one_or_none()
+
+        if movie is None:
+            return None
+
+        return MovieDTO.model_validate(movie)
+
+
+    async def get_watched_movie_ids(
+            self,
+            user_id: int
+    ) -> list[int]:
+        stmt = (
+            select(UserMovieHistory.movie_id)
             .where(UserMovieHistory.user_id == user_id)
         )
+
         result = await self.session.execute(stmt)
-        movies_orm = result.scalars().all()
-        return [MovieDTO.model_validate(movie) for movie in movies_orm]
 
-    async def add_movies_to_user_history(
-            self, user_id: int, movie_ids: list[int]
-    ) -> None:
-        if not movie_ids:
-            return
+        return list(result.scalars().all())
 
-        existing_ids = set(await self.get_user_watched_movie_ids(user_id))
 
-        new_records = [
-            UserMovieHistory(user_id=user_id, movie_id=m_id)
-            for m_id in movie_ids
-            if m_id not in existing_ids
+# TODO: Реализовать поиск по несколькоим столбцам с эмбеддингами. На данный момент он один
+    async def get_movie_embedding(
+            self,
+            movie_id: int
+    ) -> list[float] | None:
+        stmt = (
+            select(Movie.embedding)
+            .where(Movie.id == movie_id)
+        )
+
+        result = await self.session.execute(stmt)
+        result = result.scalar_one_or_none()
+
+        return result
+
+
+    async def search_movies(
+        self,
+        filters: MovieFilters,
+        query_embedding: list[float] | None,
+        limit: int,
+    ) -> list[MovieDTO]:
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+
+        stmt = apply_movie_filters(select(Movie), filters)
+
+        if query_embedding is not None:
+            stmt = (
+                stmt
+                .where(Movie.embedding.is_not(None))
+                .order_by(
+                    Movie.embedding.cosine_distance(query_embedding),
+                    Movie.id.asc(),
+                )
+            )
+        else:
+            stmt = stmt.order_by(
+                Movie.vote_average.desc().nulls_last(),
+                Movie.id.asc(),
+            )
+
+        stmt = stmt.limit(limit)
+        result = await self.session.execute(stmt)
+        movies = result.scalars().all()
+
+        return [
+            MovieDTO.model_validate(movie)
+            for movie in movies
         ]
-
-        if new_records:
-            self.session.add_all(new_records)
-            await self.session.commit()
-
-    async def insert_movies_batch(self, movies: list[Movie]) -> None:
-        self.session.add_all(movies)
-        await self.session.commit()
-        self.session.expunge_all()
-
-    async def search_similar_movies_with_filters(self) -> list[MovieDTO]:                                                #ЗАМЕНИТЬ ILIKE
-        pass
-
-    async def search_hybrid_guess(self) -> list[MovieDTO]:
-        pass

@@ -1,8 +1,11 @@
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
+from app.db.mappers import build_movie_filters
 from app.db.operations import Operations
 from app.schemas import MovieDTO
 from app.services.embedder import EmbedderService
+from app.services.schemas import MovieSearchParams
+from app.db.filters import MovieFilters
 
 
 class MovieSearchService:
@@ -27,24 +30,44 @@ class MovieSearchService:
         pass
 
 
-    async def guess(self):
+    async def search_for_guess(
+            self,
+            user_id: int,
+            movie_searhc_params: MovieSearchParams
+    ) -> MovieDTO | None:
         pass
 
 
     async def search_recommendations(
             self,
             user_id: int,
-            *,
-            query_vector: list[float] | None,
-            limit: int,
-            # фильтры добавим следующим шагом
+            params: MovieSearchParams
     ) -> list[MovieDTO]:
+        filters = build_movie_filters(params)
+
+        query_embedding = None
+
+        if params.semantic_query:
+            query_embedding = await self._embedder.get_embedding(
+                params.semantic_query
+            )
+
         async with self._session_factory() as session:
             operations = Operations(session)
 
-            watched_ids = await operations.get_user_watched_movie_ids(
+            watched_ids = await operations.get_watched_movie_ids(
                 user_id
             )
 
-            # Сюда позже перенесём вызов нового search(...)
-            raise NotImplementedError
+            filters.excluded_movie_ids = list(
+                set(filters.excluded_movie_ids) | set(watched_ids)
+            )
+
+            return await operations.search_movies(
+                filters=filters,
+                query_embedding=query_embedding,
+                limit=params.limit,
+            )
+
+
+

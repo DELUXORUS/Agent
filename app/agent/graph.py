@@ -11,6 +11,10 @@ from app.agent.routing import route_after_parse
 from app.agent.state import AgentState
 from app.config import settings
 
+from app.services.movie_search import MovieSearchService
+from app.services.embedder import embedder
+from app.db.database import async_session_maker
+
 
 llm_strict = ChatOpenAI(
     model=settings.LLM_MODEL_NAME,
@@ -28,12 +32,46 @@ llm_creative = ChatOpenAI(
     max_retries=3
 )
 
+
+movie_search_service = MovieSearchService(
+    session_factory=async_session_maker,
+    embedder=embedder,
+)
+
+
 workflow = StateGraph(AgentState)
 
-workflow.add_node("parser_query_node", partial(parser_query_node, llm=llm_creative))
-workflow.add_node("general_chat", partial(general_chat, llm=llm_creative))
-workflow.add_node("resolve_references", resolve_references)
-workflow.add_node("search_movies", search_movies)
+workflow.add_node(
+    "parser_query_node",
+    partial(
+        parser_query_node,
+        llm=llm_creative
+    )
+)
+
+workflow.add_node(
+    "general_chat",
+    partial(
+        general_chat,
+        llm=llm_creative
+    )
+)
+
+workflow.add_node(
+    "resolve_references",
+    partial(
+        resolve_references,
+        movie_search=movie_search_service
+    )
+)
+
+workflow.add_node(
+    "search_movies",
+    partial(
+      search_movies,
+      movie_search=movie_search_service
+    )
+)
 workflow.add_node("evaluate_results", evaluate_results)
 workflow.add_node("compose_response", compose_response)
 

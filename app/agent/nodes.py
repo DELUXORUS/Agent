@@ -11,8 +11,9 @@ from app.agent.schemas import (
     ReferenceResolutionStatus
 )
 from app.agent.load_prompts import prompts
-from app.services.movie_search import MovieSearchService
+from app.agent.mappers import build_movie_search_params
 from app.services.schemas import MovieSearchParams
+from app.services.movie_search import MovieSearchService
 
 
 logger = logging.getLogger("uvicorn")
@@ -51,7 +52,10 @@ async def general_chat(state: AgentState, llm: ChatOpenAI) -> dict:
     }
 
 
-async def resolve_references(state: AgentState, movie_search: MovieSearchService) -> dict:
+async def resolve_references(
+        state: AgentState,
+        movie_search: MovieSearchService
+) -> dict:
     query_plan = state["query_plan"]
 
     resolved_references = []
@@ -80,8 +84,21 @@ async def resolve_references(state: AgentState, movie_search: MovieSearchService
     }
 
 
-async def search_movies(state: AgentState) -> dict:
-    pass
+async def search_movies(
+        state: AgentState,
+        movie_search: MovieSearchService,
+) -> dict:
+    params: MovieSearchParams = build_movie_search_params(state)
+
+    movies = await movie_search.search_recommendations(
+        state['user_id'],
+        params
+    )
+
+    return {
+        "candidates": movies
+    }
+
 
 async def evaluate_results(state: AgentState, llm: ChatOpenAI) -> dict:
     pass
