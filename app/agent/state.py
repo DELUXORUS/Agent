@@ -1,8 +1,9 @@
 from typing import TypedDict
 from typing_extensions import Required, NotRequired
 
-from app.agent.schema import MovieQueryPlan
 from app.schemas import MovieDTO
+
+from app.agent.schemas import MovieQueryPlan, ResolvedMovieReference
 
 
 class AgentState(TypedDict, total=False):
@@ -12,7 +13,10 @@ class AgentState(TypedDict, total=False):
 
     query_plan: NotRequired[MovieQueryPlan]
 
-    resolved_references: NotRequired[list[MovieDTO]]
+    resolved_references: NotRequired[
+        list[ResolvedMovieReference]
+    ]
+
     candidates: NotRequired[list[MovieDTO]]
 
     final_response: NotRequired[str]

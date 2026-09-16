@@ -20,4 +20,7 @@ class MovieSearchParams:
 
     semantic_query: str | None = None
 
+    similar_movie_ids: list[int] = field(default_factory=list)
+    excluded_movie_ids: list[int] = field(default_factory=list)
+
     limit: int = 5

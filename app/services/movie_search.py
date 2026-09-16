@@ -14,8 +14,22 @@ class MovieSearchService:
         self._session_factory = session_factory
         self._embedder = embedder
 
+
     async def get_embedding(self, query: str) -> list[float]:
         return await self._embedder.get_embedding(query)
+
+
+    async def resolve_reference(
+            self,
+            query: str,
+            exact_title: bool
+    ) -> MovieDTO | None:
+        pass
+
+
+    async def guess(self):
+        pass
+
 
     async def search_recommendations(
             self,
