@@ -1,4 +1,17 @@
+import os
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
+
+# Set test configuration before application modules are imported.
+os.environ.update({
+    "BOT_TOKEN": "test-token",
+    "OPENROUTER_API_KEY": "test-key",
+    "RABBITMQ_URL": "amqp://guest:guest@localhost:5672/",
+    "EMBEDDER_MODEL_NAME": "test-embedder",
+    "LLM_MODEL_NAME": "test-llm",
+    "OPENROUTER_URL": "http://localhost:1",
+    "PROMPTS_PATH": str(Path(__file__).resolve().parents[1] / "app/agent/system_prompts.yaml"),
+})
 import pytest
 from langchain_core.messages import HumanMessage
 from app.schemas import MovieDTO
@@ -22,13 +35,11 @@ def mock_llm():
 @pytest.fixture
 def sample_state():
     return {
-        "messages": [HumanMessage(content="Посоветуй фантастику про космос")],
+        "request_id": "test-request",
+        "user_query": "Посоветуй фантастику про космос",
         "user_id": 123456789,
-        "intent": None,
-        "parsed_filter": None,
-        "found_movies": [],
+        "candidates": [],
         "final_response": "",
-        "error_reason": None,
     }
 
 

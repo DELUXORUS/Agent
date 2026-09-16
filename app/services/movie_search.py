@@ -1,9 +1,14 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 from app.db.mappers import build_movie_filters
 from app.db.operations import Operations
 from app.schemas import MovieDTO
-from app.services.embedder import EmbedderService
+if TYPE_CHECKING:
+    from app.services.embedder import EmbedderService
 from app.services.schemas import MovieSearchParams
 from app.db.filters import MovieFilters
 
