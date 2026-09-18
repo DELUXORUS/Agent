@@ -142,7 +142,7 @@ async def test_resolve_reference_success():
 
     movie_search = Mock()
     movie_search.resolve_reference = AsyncMock(
-        return_value=movie
+        return_value=[movie]
     )
 
     result = await resolve_references(
@@ -161,6 +161,7 @@ async def test_resolve_reference_success():
     movie_search.resolve_reference.assert_awaited_once_with(
         query="Interstellar",
         exact_title=True,
+        year=None,
     )
 
 
@@ -184,7 +185,7 @@ async def test_resolve_reference_not_found():
 
     movie_search = Mock()
     movie_search.resolve_reference = AsyncMock(
-        return_value=None
+        return_value=[]
     )
 
     result = await resolve_references(
@@ -203,6 +204,7 @@ async def test_resolve_reference_not_found():
     movie_search.resolve_reference.assert_awaited_once_with(
         query="Unknown Movie",
         exact_title=True,
+        year=None,
     )
 
 
@@ -253,8 +255,8 @@ async def test_resolve_multiple_references():
     movie_search = Mock()
     movie_search.resolve_reference = AsyncMock(
         side_effect=[
-            interstellar,
-            gravity,
+            [interstellar],
+            [gravity],
         ]
     )
 
@@ -288,11 +290,13 @@ async def test_resolve_multiple_references():
     movie_search.resolve_reference.assert_any_await(
         query="Interstellar",
         exact_title=True,
+        year=None,
     )
 
     movie_search.resolve_reference.assert_any_await(
         query="Gravity",
         exact_title=True,
+        year=None,
     )
 
 
@@ -329,8 +333,8 @@ async def test_resolve_multiple_references_with_not_found():
     movie_search = Mock()
     movie_search.resolve_reference = AsyncMock(
         side_effect=[
-            interstellar,
-            None,
+            [interstellar],
+            [],
         ]
     )
 

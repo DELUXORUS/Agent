@@ -19,4 +19,6 @@ class AgentState(TypedDict, total=False):
 
     candidates: NotRequired[list[MovieDTO]]
 
+    selected_movies: NotRequired[list[MovieDTO]]
+
     final_response: NotRequired[str]

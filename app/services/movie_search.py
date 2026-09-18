@@ -10,7 +10,6 @@ from app.schemas import MovieDTO
 if TYPE_CHECKING:
     from app.services.embedder import EmbedderService
 from app.services.schemas import MovieSearchParams
-from app.db.filters import MovieFilters
 
 
 class MovieSearchService:
@@ -26,13 +25,24 @@ class MovieSearchService:
     async def get_embedding(self, query: str) -> list[float]:
         return await self._embedder.get_embedding(query)
 
-
+# TODO Сделать разрешение ссылок на фильмы не только по названию, но и по описанию
     async def resolve_reference(
             self,
             query: str,
-            exact_title: bool
-    ) -> MovieDTO | None:
-        pass
+            exact_title: bool,
+            year: int | None = None,
+    ) -> list[MovieDTO]:
+        async with self._session_factory() as session:
+            operation = Operations(session)
+
+            if not exact_title:
+                raise NotImplementedError(
+                    "Reference resolution by description is not implemented yet"
+                )
+
+            result = await operation.find_movies_by_title(query, year=year)
+
+            return result
 
 
     async def search_for_guess(

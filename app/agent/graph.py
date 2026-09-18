@@ -3,11 +3,15 @@ from app.agent.nodes import (
     search_movies, evaluate_results,
     compose_response,
     general_chat,
+    request_reference_clarification
 )
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from functools import partial
-from app.agent.routing import route_after_parse
+from app.agent.routing import (
+    route_after_parse,
+    route_after_resolve_references
+)
 from app.agent.state import AgentState
 from app.config import settings
 
@@ -72,8 +76,24 @@ workflow.add_node(
       movie_search=movie_search_service
     )
 )
-workflow.add_node("evaluate_results", evaluate_results)
-workflow.add_node("compose_response", compose_response)
+workflow.add_node(
+    "evaluate_results",
+    partial(
+        evaluate_results,
+        llm=llm_strict
+    )
+)
+workflow.add_node(
+    "compose_response",
+    partial(
+        compose_response,
+        llm=llm_creative
+    )
+)
+workflow.add_node(
+    "request_reference_clarification",
+    request_reference_clarification
+)
 
 workflow.set_entry_point("parser_query_node")
 workflow.add_conditional_edges(
@@ -85,9 +105,17 @@ workflow.add_conditional_edges(
         "general_chat": "general_chat",
     }
 )
-workflow.add_edge("resolve_references", "search_movies")
+workflow.add_conditional_edges(
+    "resolve_references",
+    route_after_resolve_references,
+    {
+        "request_reference_clarification": "request_reference_clarification",
+        "search_movies": "search_movies",
+    }
+)
 workflow.add_edge("search_movies", "evaluate_results")
 workflow.add_edge("evaluate_results", "compose_response")
+workflow.add_edge("request_reference_clarification", END)
 workflow.add_edge("compose_response", END)
 
 graph = workflow.compile()

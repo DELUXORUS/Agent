@@ -50,23 +50,29 @@ class Operations:
         self.session = session
 
 
-    async def find_movie_by_title(
+    async def find_movies_by_title(
         self,
-        title: str
-    ) -> MovieDTO | None:
+        title: str,
+        year: int | None = None,
+    ) -> list[MovieDTO]:
         stmt = (
             select(Movie)
             .where(Movie.title == title)
         )
 
+        if year is not None:
+            stmt = stmt.where(
+                Movie.release_date >= date(year, 1, 1),
+                Movie.release_date <= date(year, 12, 31),
+            )
+
+        stmt = stmt.order_by(Movie.release_date.asc().nulls_last(), Movie.id.asc())
+
         result = await self.session.execute(stmt)
 
-        movie = result.scalar_one_or_none()
+        movies = result.scalars().all()
 
-        if movie is None:
-            return None
-
-        return MovieDTO.model_validate(movie)
+        return [MovieDTO.model_validate(movie) for movie in movies]
 
 
     async def get_watched_movie_ids(
@@ -133,3 +139,5 @@ class Operations:
             MovieDTO.model_validate(movie)
             for movie in movies
         ]
+
+

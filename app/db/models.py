@@ -10,6 +10,7 @@ from pgvector.sqlalchemy import Vector
 class Base(DeclarativeBase):
     pass
 
+
 class Movie(Base):
     __tablename__ = "movies"
 
@@ -37,6 +38,7 @@ class Movie(Base):
         Index("idx_movies_vote_average", "vote_average"),
         Index("idx_movies_release_date", "release_date"),
     )
+
 
 class UserMovieHistory(Base):
     __tablename__ = "user_movies_history"

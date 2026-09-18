@@ -1,5 +1,5 @@
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 
 from app.schemas import MovieDTO
 
@@ -10,6 +10,22 @@ class Intent(str, Enum):
     GENERAL_CHAT = "general_chat"
 
 
+class MovieEvaluation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    accepted_movie_ids: list[StrictInt] = Field(
+        description="IDs of relevant candidates; empty when none are suitable."
+    )
+
+    @field_validator("accepted_movie_ids")
+    @classmethod
+    def duplicate_ids(cls, ids: list[int]) -> list[int]:
+        if len(ids) != len(set(ids)):
+            dict_ids = dict.fromkeys(ids)
+            ids = list(dict_ids.keys())
+        return ids
+
+
 class ReferenceRelation(str, Enum):
     SIMILAR_TO = "similar_to"
     EXCLUDE = "exclude"
@@ -18,6 +34,7 @@ class ReferenceRelation(str, Enum):
 class ReferenceResolutionStatus(str, Enum):
     RESOLVED = "resolved"
     NOT_FOUND = "not_found"
+    AMBIGUOUS = "ambiguous"
 
 
 class EntityFilter(BaseModel):
@@ -38,12 +55,14 @@ class FloatRange(BaseModel):
 class MovieReference(BaseModel):
     query: str
     exact_title: bool = False
+    year: int | None = None
     relation: ReferenceRelation = ReferenceRelation.SIMILAR_TO
 
 class ResolvedMovieReference(BaseModel):
     reference: MovieReference
     movie: MovieDTO | None = None
     status: ReferenceResolutionStatus
+    candidates: list[MovieDTO] = Field(default_factory=list)
 
 
 class MovieQueryPlan(BaseModel):
