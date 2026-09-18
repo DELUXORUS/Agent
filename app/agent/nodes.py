@@ -1,4 +1,5 @@
 import logging
+import json
 
 from html import escape
 from langchain_openai import ChatOpenAI
@@ -166,14 +167,48 @@ async def evaluate_results(
         state: AgentState,
         llm: ChatOpenAI
 ) -> dict:
-    structed_output_llm = llm.with_structured_output(MovieEvaluation)
+    candidates = state["candidates"]
+
+    if not candidates:
+        return {"selected_movies": []}
+
+    payload = {
+        "user_query": state["user_query"],
+        "candidates": [movie.model_dump(mode="json") for movie in candidates],
+    }
+
+
+
 
     messages = [
-        SystemMessage(content=prompts["SYSTEM_PARSER_EVALUATE_PROMPT"]),
-        HumanMessage(content=state['user_query'])
+        SystemMessage(
+            content=prompts["SYSTEM_PARSER_EVALUATE_PROMPT"]
+        ),
+        HumanMessage(
+            content=json.dumps(payload, ensure_ascii=False)
+        ),
     ]
 
-    response = structed_output_llm.ainvoke(messages)
+    structed_output_llm = llm.with_structured_output(MovieEvaluation)
+    response = await structed_output_llm.ainvoke(messages)
+
+    evaluation = MovieEvaluation.model_validate(response)
+
+    accepted_ids = set(evaluation.accepted_movie_ids)
+    candidate_ids = {movie.id for movie in candidates}
+
+    if not accepted_ids.issubset(candidate_ids):
+        raise ValueError(
+            "Evaluation returned IDs outside the candidate list"
+        )
+
+    selected_movies = [
+        movie
+        for movie in candidates
+        if movie.id in accepted_ids
+    ]
+
+    return {"selected_movies": selected_movies}
 
 
 
@@ -181,4 +216,26 @@ async def compose_response(
         state: AgentState,
         llm: ChatOpenAI
 ) -> dict:
-    pass
+    selected_movies = state["selected_movies"]
+
+    if selected_movies:
+        response = "Вот подходящие фильмы:\n\n"
+
+        for index, movie in enumerate(selected_movies, start=1):
+            title = escape(movie.title)
+            year = (
+                escape(movie.release_date[:4])
+                if movie.release_date
+                else "год неизвестен"
+            )
+            rating = (
+                movie.vote_average
+                if movie.vote_average is not None
+                else "нет данных"
+            )
+
+            response += f"{index}. {title} — {year} · рейтинг: {rating}\n"
+    else:
+        response = "В нашем каталоге не удалось найти подходящие фильмы."
+
+    return {"final_response": response.strip()}
