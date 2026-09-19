@@ -1,11 +1,15 @@
 import asyncio
 import logging
+
 from fastapi import FastAPI
-from app.core.broker import broker
 from contextlib import asynccontextmanager
+
+from app.core.broker import broker
 from app.api.router import router as api_router
 
+
 logger = logging.getLogger("uvicorn")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,8 +30,10 @@ async def lifespan(app: FastAPI):
     yield
     await broker.stop()
 app = FastAPI(lifespan=lifespan)
-app.include_router(api_router,
-                   prefix="/api/v1",)
+app.include_router(
+    api_router,
+    prefix="/api/v1"
+)
 
 @app.get("/health")
 async def health_check():

@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, insert
 from datetime import date
 
 from app.schemas import MovieDTO
@@ -141,3 +141,15 @@ class Operations:
         ]
 
 
+    async def add_movies_to_user_history(
+            self,
+            user_id: int,
+            movie_id: int
+    ):
+        stmt = insert(UserMovieHistory).values(
+                user_id=user_id,
+                movie_id=movie_id,
+            )
+
+        await self.session.execute(stmt)
+        await self.session.commit()

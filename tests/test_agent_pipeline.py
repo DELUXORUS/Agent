@@ -180,3 +180,20 @@ async def test_resolved_references_continue_to_recommendations(pipeline):
     )
     assert "1. Interstellar" in result["final_response"]
     assert "Повтори полный запрос" not in result["final_response"]
+
+
+@pytest.mark.asyncio
+async def test_unsupported_filters_end_graph_before_search(pipeline):
+    pipeline.plan.genres.include = ["Science Fiction"]
+    pipeline.plan.runtime_minutes = IntRange(max=120)
+
+    result = await pipeline.graph.ainvoke(pipeline.initial)
+
+    assert result["unsupported_filters"] == ["runtime", "genres"]
+    assert "хронометражу и жанрам" in result["final_response"]
+    assert "году и рейтингу" in result["final_response"]
+    assert "candidates" not in result
+    pipeline.service.resolve_reference.assert_not_awaited()
+    pipeline.service.search_recommendations.assert_not_awaited()
+    pipeline.evaluator.ainvoke.assert_not_awaited()
+    pipeline.llm.ainvoke.assert_not_awaited()

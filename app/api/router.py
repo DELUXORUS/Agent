@@ -3,8 +3,8 @@ from fastapi import APIRouter, Response, status
 from app.core.broker import broker
 from app.schemas import TelegramCallbackTask, TelegramMessageTask
 
-router = APIRouter(prefix="/webhook", tags=["Telegram Webhook"])
 
+router = APIRouter(prefix="/webhook", tags=["Telegram Webhook"])
 
 @router.post("/telegram")
 async def telegram_webhook(data: dict):

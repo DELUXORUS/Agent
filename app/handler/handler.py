@@ -2,7 +2,7 @@ import time
 import asyncio
 import logging
 from faststream import FastStream
-from langchain_core.messages import HumanMessage
+from uuid import uuid4
 
 from app.agent.graph import graph
 from app.agent.state import AgentState
@@ -19,13 +19,9 @@ async def generate_response(text: str, username: str, user_id: int) -> tuple[str
     logger.info(f"Запуск LangGraph агента для @{username} (id: {user_id}): '{text}'")
 
     initial_state: AgentState = {
-        "messages": [HumanMessage(content=text)],
+        "request_id": str(uuid4()),
         "user_id": user_id,
-        "intent": None,
-        "parsed_filter": None,
-        "found_movies": [],
-        "error_reason": None,
-        "final_response": None,
+        "user_query": text,
     }
 
     start_time = time.perf_counter()
@@ -33,7 +29,7 @@ async def generate_response(text: str, username: str, user_id: int) -> tuple[str
     try:
         final_state = await graph.ainvoke(initial_state)
         response_text = final_state.get("final_response")
-        found_movies = final_state.get("found_movies", [])
+        found_movies = final_state.get("selected_movies", [])
         logger.info(f"Шаг поиска выполнен за {time.perf_counter() - start_time:.2f} сек")
 
         if not response_text:
@@ -95,7 +91,7 @@ async def handle_telegram_callbacks(callback_data: dict):
 
     async with async_session_maker() as session:
         ops = Operations(session)
-        await ops.add_movies_to_user_history(user_id=user_id, movie_ids=[movie_id])
+        await ops.add_movies_to_user_history(user_id=user_id, movie_id=movie_id)
 
 
     if cb_id:
@@ -113,7 +109,7 @@ async def handle_telegram_callbacks(callback_data: dict):
             new_row = []
             for btn in row:
                 if btn.get("callback_data") == cb_text:
-                    new_row.append({"text": f"✅ №{idx_str}", "callback_data": "ignore"})
+                    new_row.append({"text": f"№{idx_str}", "callback_data": "ignore"})
                 else:
                     new_row.append(btn)
             new_keyboard.append(new_row)
