@@ -1,4 +1,4 @@
-from sqlalchemy import select, insert
+from sqlalchemy import select
 from datetime import date
 
 from app.schemas import MovieDTO
@@ -9,6 +9,7 @@ from app.db.filters import MovieFilters, apply_movie_filters
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.dialects.postgresql import insert
 
 
 def build_movie_conditions(
@@ -155,6 +156,10 @@ class Operations:
                 user_id=user_id,
                 movie_id=movie_id,
             )
+
+        stmt = stmt.on_conflict_do_nothing(
+            constraint="uq_user_movies_history_user_movie"
+        )
 
         await self.session.execute(stmt)
         await self.session.commit()

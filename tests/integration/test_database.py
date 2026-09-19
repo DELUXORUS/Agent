@@ -49,3 +49,23 @@ async def test_get_movie_embeddings_returns_ids_and_skips_missing_vectors(
 
     assert set(embeddings) == {1, 2}
     assert all(len(embedding) == 384 for embedding in embeddings.values())
+
+
+@pytest.mark.asyncio
+async def test_history_insert_is_idempotent_per_user_and_movie(
+    pg_catalog: AsyncSession,
+):
+    operations = Operations(pg_catalog)
+
+    await operations.add_movies_to_user_history(user_id=777, movie_id=3)
+    await operations.add_movies_to_user_history(user_id=777, movie_id=3)
+    await operations.add_movies_to_user_history(user_id=888, movie_id=3)
+    await operations.add_movies_to_user_history(user_id=777, movie_id=4)
+
+    # Check all rows, not a set: a duplicate must fail this assertion.
+    history = (await pg_catalog.execute(
+        select(UserMovieHistory.user_id, UserMovieHistory.movie_id)
+        .order_by(UserMovieHistory.user_id, UserMovieHistory.movie_id)
+    )).all()
+
+    assert history == [(42, 1), (99, 2), (777, 3), (777, 4), (888, 3)]

@@ -1,9 +1,15 @@
 from sqlalchemy import (
     BigInteger, Text, Float, String,
-    ForeignKey, Index, Integer, Date
+    ForeignKey, Index, Integer, Date,
+    UniqueConstraint
 )
 from datetime import date
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    mapped_column
+)
 from pgvector.sqlalchemy import Vector
 
 
@@ -46,3 +52,11 @@ class UserMovieHistory(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
     movie_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("movies.id", ondelete="CASCADE"), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "movie_id",
+            name="uq_user_movies_history_user_movie",
+        ),
+    )

@@ -64,15 +64,6 @@ class MovieSearchService:
 
             return result
 
-
-    async def search_for_guess(
-            self,
-            user_id: int,
-            movie_searhc_params: MovieSearchParams
-    ) -> MovieDTO | None:
-        pass
-
-
     async def search_recommendations(
             self,
             user_id: int,
