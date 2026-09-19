@@ -197,3 +197,46 @@ async def test_unsupported_filters_end_graph_before_search(pipeline):
     pipeline.service.search_recommendations.assert_not_awaited()
     pipeline.evaluator.ainvoke.assert_not_awaited()
     pipeline.llm.ainvoke.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_guess_movie_ends_graph_before_reference_resolution(pipeline):
+    pipeline.plan.intent = Intent.GUESS_MOVIE
+    pipeline.plan.reference_movies = [
+        MovieReference(
+            query="фильм Нолана про сны",
+            exact_title=False,
+        )
+    ]
+
+    result = await pipeline.graph.ainvoke(pipeline.initial)
+
+    assert "Поиск фильма по описанию пока не поддерживается" in result["final_response"]
+    assert "candidates" not in result
+    assert "resolved_references" not in result
+    pipeline.service.resolve_reference.assert_not_awaited()
+    pipeline.service.search_recommendations.assert_not_awaited()
+    pipeline.evaluator.ainvoke.assert_not_awaited()
+    pipeline.llm.ainvoke.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_indirect_reference_asks_for_exact_title(pipeline):
+    pipeline.plan.reference_movies = [
+        MovieReference(
+            query="фильм Нолана про сны",
+            exact_title=False,
+        )
+    ]
+
+    result = await pipeline.graph.ainvoke(pipeline.initial)
+
+    assert "Укажи точное название фильма" in result["final_response"]
+    assert (
+        result["resolved_references"][0].status
+        == ReferenceResolutionStatus.REQUIRES_EXACT_TITLE
+    )
+    assert "candidates" not in result
+    pipeline.service.resolve_reference.assert_not_awaited()
+    pipeline.service.search_recommendations.assert_not_awaited()
+    pipeline.evaluator.ainvoke.assert_not_awaited()

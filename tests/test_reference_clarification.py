@@ -28,7 +28,10 @@ def reference_result(status, query="Dune"):
         MovieDTO(id=2, title=query, release_date="2021-10-22"),
     ]
     return ResolvedMovieReference(
-        reference=MovieReference(query=query, exact_title=True),
+        reference=MovieReference(
+            query=query,
+            exact_title=status != Status.REQUIRES_EXACT_TITLE,
+        ),
         status=status,
         movie=movies[0] if status == Status.RESOLVED else None,
         candidates=movies if status == Status.AMBIGUOUS else [],
@@ -42,6 +45,8 @@ def reference_result(status, query="Dune"):
     ([Status.NOT_FOUND, Status.RESOLVED], "request_reference_clarification"),
     ([Status.NOT_FOUND, Status.AMBIGUOUS], "request_reference_clarification"),
     ([Status.AMBIGUOUS, Status.NOT_FOUND], "request_reference_clarification"),
+    ([Status.RESOLVED, Status.REQUIRES_EXACT_TITLE], "request_reference_clarification"),
+    ([Status.REQUIRES_EXACT_TITLE, Status.RESOLVED], "request_reference_clarification"),
     ([Status.RESOLVED, Status.RESOLVED], "search_movies"),
     ([], "search_movies"),
 ])
@@ -70,6 +75,23 @@ async def test_missing_movie_gets_not_found_message():
     assert "Не удалось найти в каталоге фильм «Missing»" in result["final_response"]
     assert "Проверь название" in result["final_response"]
     assert "найдено несколько вариантов" not in result["final_response"]
+
+
+@pytest.mark.asyncio
+async def test_indirect_reference_requests_exact_title():
+    result = await request_reference_clarification({
+        "resolved_references": [
+            reference_result(
+                Status.REQUIRES_EXACT_TITLE,
+                "фильм Нолана про сны",
+            )
+        ],
+    })
+
+    text = result["final_response"]
+    assert "фильм Нолана про сны" in text
+    assert "Укажи точное название фильма" in text
+    assert "Повтори полный запрос" in text
 
 
 @pytest.mark.asyncio

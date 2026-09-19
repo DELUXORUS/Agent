@@ -209,6 +209,37 @@ async def test_resolve_reference_not_found():
 
 
 @pytest.mark.asyncio
+async def test_indirect_reference_requires_exact_title_without_search():
+    reference = MovieReference(
+        query="фильм Нолана про сны",
+        exact_title=False,
+    )
+    state = {
+        "request_id": "test-request",
+        "user_id": 1,
+        "user_query": "Посоветуй похожее на тот фильм Нолана про сны",
+        "query_plan": MovieQueryPlan(
+            intent=Intent.RECOMMEND_MOVIES,
+            reference_movies=[reference],
+        ),
+    }
+    movie_search = Mock(resolve_reference=AsyncMock())
+
+    result = await resolve_references(state, movie_search)
+
+    assert len(result["resolved_references"]) == 1
+    resolved = result["resolved_references"][0]
+    assert resolved.reference == reference
+    assert resolved.movie is None
+    assert resolved.candidates == []
+    assert (
+        resolved.status
+        == ReferenceResolutionStatus.REQUIRES_EXACT_TITLE
+    )
+    movie_search.resolve_reference.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_resolve_multiple_references():
     interstellar_reference = MovieReference(
         query="Interstellar",

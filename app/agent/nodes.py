@@ -66,6 +66,17 @@ async def general_chat(
     }
 
 
+async def request_guess_movie_unavailable(
+    state: AgentState,
+) -> dict:
+    return {
+        "final_response": (
+            "Поиск фильма по описанию пока не поддерживается. "
+            "Укажи точное название фильма, если оно тебе известно."
+        ),
+    }
+
+
 async def request_filter_adjustment(
     state: AgentState,
 ) -> dict:
@@ -102,6 +113,18 @@ async def resolve_references(
 
     resolved_references = []
     for reference in query_plan.reference_movies:
+        if not reference.exact_title:
+            resolved_references.append(
+                ResolvedMovieReference(
+                    reference=reference,
+                    movie=None,
+                    status=(
+                        ReferenceResolutionStatus.REQUIRES_EXACT_TITLE
+                    ),
+                )
+            )
+            continue
+
         movies: list[MovieDTO] = await movie_search.resolve_reference(
             query=reference.query,
             exact_title=reference.exact_title,
@@ -163,6 +186,15 @@ async def request_reference_clarification(
             blocks.append(
                 f"Не удалось найти в каталоге фильм «{query}».\n"
                 "Проверь название или укажи оригинальное."
+            )
+
+        elif (
+            resolved.status
+            == ReferenceResolutionStatus.REQUIRES_EXACT_TITLE
+        ):
+            blocks.append(
+                f"Не удалось однозначно определить фильм по описанию «{query}».\n"
+                "Укажи точное название фильма."
             )
 
     if not blocks:

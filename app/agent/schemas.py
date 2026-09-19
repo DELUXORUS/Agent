@@ -35,6 +35,7 @@ class ReferenceResolutionStatus(str, Enum):
     RESOLVED = "resolved"
     NOT_FOUND = "not_found"
     AMBIGUOUS = "ambiguous"
+    REQUIRES_EXACT_TITLE = "requires_exact_title"
 
 
 class EntityFilter(BaseModel):
