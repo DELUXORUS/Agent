@@ -12,8 +12,9 @@ os.environ.update({
     "OPENROUTER_URL": "http://localhost:1",
     "PROMPTS_PATH": str(Path(__file__).resolve().parents[1] / "app/agent/system_prompts.yaml"),
 })
+
 import pytest
-from langchain_core.messages import HumanMessage
+
 from app.schemas import MovieDTO
 
 
