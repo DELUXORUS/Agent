@@ -3,6 +3,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.db.models import Movie, UserMovieHistory
+from app.db.operations import Operations
 
 
 @pytest.mark.asyncio
@@ -38,3 +39,13 @@ async def test_catalog_contains_movies_vectors_and_user_history(pg_catalog: Asyn
         select(UserMovieHistory.user_id, UserMovieHistory.movie_id).order_by(UserMovieHistory.user_id)
     )).all()
     assert history == [(42, 1), (99, 2)]
+
+
+@pytest.mark.asyncio
+async def test_get_movie_embeddings_returns_ids_and_skips_missing_vectors(
+    pg_catalog: AsyncSession,
+):
+    embeddings = await Operations(pg_catalog).get_movie_embeddings([1, 2, 8, 999])
+
+    assert set(embeddings) == {1, 2}
+    assert all(len(embedding) == 384 for embedding in embeddings.values())

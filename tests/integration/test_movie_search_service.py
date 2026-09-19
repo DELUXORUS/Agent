@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.movie_search import MovieSearchService
+from app.services.movie_search import MissingMovieEmbeddingsError
 from app.services.schemas import MovieSearchParams
 
 
@@ -101,3 +102,85 @@ async def test_search_without_semantic_query_uses_rating_order(
 
     assert [movie.id for movie in movies] == [2, 3]
     embedder.get_embedding.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_reference_movie_embedding_drives_search_and_is_excluded(
+    pg_catalog: AsyncSession,
+):
+    embedder = Mock(get_embedding=AsyncMock())
+    service = MovieSearchService(
+        make_session_factory(pg_catalog),
+        embedder,
+    )
+
+    movies = await service.search_recommendations(
+        user_id=0,
+        params=MovieSearchParams(similar_movie_ids=[4], limit=3),
+    )
+
+    assert [movie.id for movie in movies] == [3, 7, 2]
+    assert all(movie.id != 4 for movie in movies)
+    embedder.get_embedding.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_multiple_reference_embeddings_are_averaged(
+    pg_catalog: AsyncSession,
+):
+    service = MovieSearchService(
+        make_session_factory(pg_catalog),
+        Mock(get_embedding=AsyncMock()),
+    )
+
+    movies = await service.search_recommendations(
+        user_id=0,
+        params=MovieSearchParams(similar_movie_ids=[1, 4], limit=3),
+    )
+
+    assert [movie.id for movie in movies] == [2, 3, 7]
+    assert all(movie.id not in {1, 4} for movie in movies)
+
+
+@pytest.mark.asyncio
+async def test_semantic_and_reference_embeddings_have_equal_weight(
+    pg_catalog: AsyncSession,
+    query_embedding: list[float],
+):
+    embedder = Mock(
+        get_embedding=AsyncMock(return_value=query_embedding)
+    )
+    service = MovieSearchService(
+        make_session_factory(pg_catalog),
+        embedder,
+    )
+
+    movies = await service.search_recommendations(
+        user_id=0,
+        params=MovieSearchParams(
+            semantic_query="space",
+            similar_movie_ids=[4],
+            limit=3,
+        ),
+    )
+
+    assert [movie.id for movie in movies] == [2, 3, 7]
+    embedder.get_embedding.assert_awaited_once_with("space")
+
+
+@pytest.mark.asyncio
+async def test_missing_reference_embedding_stops_search(
+    pg_catalog: AsyncSession,
+):
+    service = MovieSearchService(
+        make_session_factory(pg_catalog),
+        Mock(get_embedding=AsyncMock()),
+    )
+
+    with pytest.raises(MissingMovieEmbeddingsError) as caught:
+        await service.search_recommendations(
+            user_id=0,
+            params=MovieSearchParams(similar_movie_ids=[8]),
+        )
+
+    assert caught.value.movie_ids == (8,)

@@ -90,19 +90,24 @@ class Operations:
 
 
 # TODO: Реализовать поиск по несколькоим столбцам с эмбеддингами. На данный момент он один
-    async def get_movie_embedding(
-            self,
-            movie_id: int
-    ) -> list[float] | None:
+    async def get_movie_embeddings(
+        self,
+        movie_ids: list[int],
+    ) -> dict[int, list[float]]:
         stmt = (
-            select(Movie.embedding)
-            .where(Movie.id == movie_id)
+            select(Movie.id, Movie.embedding)
+            .where(
+                Movie.id.in_(movie_ids),
+                Movie.embedding.is_not(None),
+            )
         )
 
         result = await self.session.execute(stmt)
-        result = result.scalar_one_or_none()
 
-        return result
+        return {
+            movie_id: list(embedding)
+            for movie_id, embedding in result.all()
+        }
 
 
     async def search_movies(
