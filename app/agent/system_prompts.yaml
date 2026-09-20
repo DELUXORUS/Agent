@@ -30,6 +30,15 @@ SYSTEM_PARSER_QUERY_PROMPT: |
   - Пример: "Посоветуй похожее на фильм 1917". Элемент reference_movies:
     query="1917", exact_title=true, year=null, relation="similar_to".
   - Жанры, актёров и режиссёров разделяй на include и exclude.
+  - Для жанров используй названия каталога: action, adventure, animation, comedy,
+    crime, documentary, drama, family, fantasy, foreign, history, horror, music,
+    mystery, romance, science fiction, thriller, tv movie, war, western.
+    Например: «фантастика» → science fiction, «ужасы» → horror.
+  - Имена актёров и режиссёров записывай в общепринятом написании для
+    англоязычного каталога: «Кристофер Нолан» → Christopher Nolan.
+    Не добавляй персон, которых пользователь не указал.
+  - Несколько значений include означают, что нужны все перечисленные значения.
+    Любое совпадение со значением exclude исключает фильм.
   - Числовые ограничения записывай в соответствующие диапазоны.
   - desired_traits используй для мягких предпочтений: атмосфера, стиль, настроение, тематика.
   - undesired_traits используй для характеристик, которых пользователь хочет избежать.

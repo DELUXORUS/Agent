@@ -21,6 +21,4 @@ class AgentState(TypedDict, total=False):
 
     selected_movies: NotRequired[list[MovieDTO]]
 
-    unsupported_filters: NotRequired[list[str]]
-
     final_response: NotRequired[str]

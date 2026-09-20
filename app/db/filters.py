@@ -33,19 +33,20 @@ def apply_movie_filters(
     stmt: Select[tuple[Movie]],
     filters: MovieFilters,
 ) -> Select[tuple[Movie]]:
-    if (
-        filters.runtime_min is not None
-        or filters.runtime_max is not None
-        or filters.included_genres
-        or filters.excluded_genres
-        or filters.included_actors
-        or filters.excluded_actors
-        or filters.included_directors
-        or filters.excluded_directors
+    if filters.runtime_min is not None:
+        stmt = stmt.where(Movie.runtime >= filters.runtime_min)
+    if filters.runtime_max is not None:
+        stmt = stmt.where(Movie.runtime <= filters.runtime_max)
+
+    for column, included, excluded in (
+        (Movie.genres, filters.included_genres, filters.excluded_genres),
+        (Movie.actors, filters.included_actors, filters.excluded_actors),
+        (Movie.directors, filters.included_directors, filters.excluded_directors),
     ):
-        raise NotImplementedError(
-            "Runtime, genre, actor and director filters are not implemented yet"
-        )
+        if included:
+            stmt = stmt.where(column.contains(included))
+        if excluded:
+            stmt = stmt.where(~column.overlap(excluded))
 
     if filters.year_min is not None:
         stmt = stmt.where(

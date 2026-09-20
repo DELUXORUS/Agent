@@ -16,10 +16,6 @@ from app.agent.schemas import (
 )
 from app.agent.load_prompts import prompts
 from app.agent.mappers import build_movie_search_params
-from app.agent.capabilities import (
-    UNSUPPORTED_FILTER_LABELS,
-    get_unsupported_filters,
-)
 from app.services.schemas import MovieSearchParams
 from app.services.movie_search import MovieSearchService
 
@@ -73,34 +69,6 @@ async def request_guess_movie_unavailable(
         "final_response": (
             "Поиск фильма по описанию пока не поддерживается. "
             "Укажи точное название фильма, если оно тебе известно."
-        ),
-    }
-
-
-async def request_filter_adjustment(
-    state: AgentState,
-) -> dict:
-    unsupported_filters = get_unsupported_filters(state["query_plan"])
-
-    if not unsupported_filters:
-        raise ValueError(
-            "Filter adjustment requires at least one unsupported filter"
-        )
-
-    labels = [
-        UNSUPPORTED_FILTER_LABELS[filter_name]
-        for filter_name in unsupported_filters
-    ]
-    if len(labels) == 1:
-        filters_text = labels[0]
-    else:
-        filters_text = f"{', '.join(labels[:-1])} и {labels[-1]}"
-
-    return {
-        "unsupported_filters": unsupported_filters,
-        "final_response": (
-            f"Пока строгая фильтрация по {filters_text} не поддерживается. "
-            "Сейчас можно использовать ограничения по году и рейтингу."
         ),
     }
 

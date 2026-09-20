@@ -183,20 +183,18 @@ async def test_resolved_references_continue_to_recommendations(pipeline):
 
 
 @pytest.mark.asyncio
-async def test_unsupported_filters_end_graph_before_search(pipeline):
+async def test_hard_filters_reach_search(pipeline):
     pipeline.plan.genres.include = ["Science Fiction"]
     pipeline.plan.runtime_minutes = IntRange(max=120)
-
-    result = await pipeline.graph.ainvoke(pipeline.initial)
-
-    assert result["unsupported_filters"] == ["runtime", "genres"]
-    assert "хронометражу и жанрам" in result["final_response"]
-    assert "году и рейтингу" in result["final_response"]
-    assert "candidates" not in result
-    pipeline.service.resolve_reference.assert_not_awaited()
-    pipeline.service.search_recommendations.assert_not_awaited()
-    pipeline.evaluator.ainvoke.assert_not_awaited()
-    pipeline.llm.ainvoke.assert_not_awaited()
+    pipeline.plan.actors.exclude = ["Actor"]
+    pipeline.plan.directors.exclude = ["Director"]
+    await pipeline.graph.ainvoke(pipeline.initial)
+    params = pipeline.service.search_recommendations.await_args.args[1]
+    assert params.genres == ["Science Fiction"]
+    assert params.runtime_max == 120
+    assert params.excluded_actors == ["Actor"]
+    assert params.excluded_directors == ["Director"]
+    pipeline.evaluator.ainvoke.assert_awaited_once()
 
 
 @pytest.mark.asyncio

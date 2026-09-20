@@ -83,17 +83,6 @@ def test_zero_rating_is_a_constraint(database):
     assert [m.id for m in database.scalars(stmt)] == [9]
 
 
-@pytest.mark.parametrize("field,value", [
-    ("runtime_min", 90), ("runtime_max", 120),
-    ("included_genres", ["Drama"]), ("excluded_genres", ["Horror"]),
-    ("included_actors", ["Actor"]), ("excluded_actors", ["Actor"]),
-    ("included_directors", ["Director"]), ("excluded_directors", ["Director"]),
-])
-def test_unsupported_filters_are_not_silently_ignored(field, value):
-    with pytest.raises(NotImplementedError):
-        apply_movie_filters(select(Movie), MovieFilters(**{field: value}))
-
-
 def test_mapper_preserves_constraints_without_sharing_lists():
     params = MovieSearchParams(year_min=2010, year_max=2020, rating_min=7, rating_max=8,
                                runtime_min=90, runtime_max=120, genres=["Drama"],
@@ -101,9 +90,9 @@ def test_mapper_preserves_constraints_without_sharing_lists():
                                directors=["Director"], excluded_movie_ids=[2])
     filters = build_movie_filters(params)
     assert filters == MovieFilters(year_min=2010, year_max=2020, rating_min=7, rating_max=8,
-                                   runtime_min=90, runtime_max=120, included_genres=["Drama"],
-                                   excluded_genres=["Horror"], included_actors=["Actor"],
-                                   included_directors=["Director"], excluded_movie_ids=[2])
+                                   runtime_min=90, runtime_max=120, included_genres=["drama"],
+                                   excluded_genres=["horror"], included_actors=["actor"],
+                                   included_directors=["director"], excluded_movie_ids=[2])
     filters.excluded_movie_ids.append(3)
     filters.included_genres.append("Comedy")
     assert params.excluded_movie_ids == [2]

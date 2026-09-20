@@ -4,7 +4,6 @@ from app.agent.nodes import (
     compose_response,
     general_chat,
     request_reference_clarification,
-    request_filter_adjustment,
     request_guess_movie_unavailable,
 )
 from langchain_openai import ChatOpenAI
@@ -97,10 +96,6 @@ workflow.add_node(
     request_reference_clarification
 )
 workflow.add_node(
-    "request_filter_adjustment",
-    request_filter_adjustment,
-)
-workflow.add_node(
     "request_guess_movie_unavailable",
     request_guess_movie_unavailable,
 )
@@ -113,7 +108,6 @@ workflow.add_conditional_edges(
         "resolve_references": "resolve_references",
         "search_movies": "search_movies",
         "general_chat": "general_chat",
-        "request_filter_adjustment": "request_filter_adjustment",
         "request_guess_movie_unavailable": "request_guess_movie_unavailable",
     }
 )
@@ -128,7 +122,6 @@ workflow.add_conditional_edges(
 workflow.add_edge("search_movies", "evaluate_results")
 workflow.add_edge("evaluate_results", "compose_response")
 workflow.add_edge("request_reference_clarification", END)
-workflow.add_edge("request_filter_adjustment", END)
 workflow.add_edge("request_guess_movie_unavailable", END)
 workflow.add_edge("compose_response", END)
 

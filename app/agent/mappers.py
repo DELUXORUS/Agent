@@ -36,6 +36,9 @@ def build_movie_search_params(
         runtime_min=query_plan.runtime_minutes.min,
         runtime_max=query_plan.runtime_minutes.max,
 
+        excluded_actors=query_plan.actors.exclude,
+        excluded_directors=query_plan.directors.exclude,
+
         semantic_query=query_plan.semantic_query,
 
         similar_movie_ids=similar_movie_ids,

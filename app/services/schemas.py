@@ -23,4 +23,7 @@ class MovieSearchParams:
     similar_movie_ids: list[int] = field(default_factory=list)
     excluded_movie_ids: list[int] = field(default_factory=list)
 
+    excluded_actors: list[str] = field(default_factory=list)
+    excluded_directors: list[str] = field(default_factory=list)
+
     limit: int = 5

@@ -1,7 +1,6 @@
 from app.agent.schemas import Intent
 from app.agent.state import AgentState
 from app.agent.schemas import ReferenceResolutionStatus
-from app.agent.capabilities import get_unsupported_filters
 
 
 def route_after_parse(state: AgentState) -> str:
@@ -17,9 +16,6 @@ def route_after_parse(state: AgentState) -> str:
 
     if query_plan.intent == Intent.GUESS_MOVIE:
         return "request_guess_movie_unavailable"
-
-    if get_unsupported_filters(query_plan):
-        return "request_filter_adjustment"
 
     if query_plan.reference_movies:
         return "resolve_references"
