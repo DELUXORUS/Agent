@@ -6,6 +6,7 @@ from scripts.movie_dataset import (
     deduplicate_movies,
     merge_movie_datasets,
     normalize_id_column,
+    prepare_and_filter_movies,
     prepare_credits,
     prepare_keywords,
 )
@@ -113,6 +114,21 @@ def main() -> None:
         "Movies without keywords:",
         merged_movies["keywords"].map(len).eq(0).sum(),
     )
+
+    prepared_movies, filter_report = prepare_and_filter_movies(
+        merged_movies
+    )
+
+    print_dataset_info("Prepared movies", prepared_movies)
+    print("Filter report:")
+
+    for rule_name, rows_count in filter_report.items():
+        print(f"  {rule_name}: {rows_count}")
+
+    the_game = prepared_movies.loc[
+        prepared_movies["tmdb_id"].eq(2649)
+    ]
+    print("The Game is present:", not the_game.empty)
 
 
 if __name__ == "__main__":
