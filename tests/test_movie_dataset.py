@@ -78,3 +78,54 @@ def test_prepare_movies_preserves_titles_and_adds_normalized_titles():
     assert movie["normalized_original_title"] == "the game"
     assert movie["genres"] == ("drama", "thriller")
     assert report["output_rows"] == 1
+
+
+@pytest.fixture
+def seed_record():
+    from datetime import date
+    from scripts.movie_dataset import MovieSeedRecord
+
+    return MovieSeedRecord(
+        tmdb_id=2649, imdb_id="tt0119174", title="The Game",
+        normalized_title="the game", original_title="  THE   GAME ",
+        normalized_original_title="the game", original_language="en",
+        overview="A banker receives an unusual birthday gift.",
+        tagline=None, genres=("drama", "thriller"),
+        actors=("michael douglas",), directors=("david fincher",),
+        keywords=(), release_date=date(1997, 9, 12),
+        runtime=129, vote_average=7.5, vote_count=1000,
+    )
+
+
+def test_embedding_text_preserves_display_text_and_omits_duplicate_title(seed_record):
+    from scripts.movie_dataset import build_movie_embedding_text
+
+    assert build_movie_embedding_text(seed_record) == (
+        "Title: The Game\n"
+        "Overview: A banker receives an unusual birthday gift.\n"
+        "Genres: drama, thriller"
+    )
+
+
+def test_embedding_text_includes_original_title_and_limits_keywords(seed_record):
+    from dataclasses import replace
+    from scripts.movie_dataset import build_movie_embedding_text
+
+    movie = replace(seed_record, original_title="Игра", tagline="An unusual gift.",
+                    keywords=tuple(f"keyword-{i}" for i in range(30)))
+    text = build_movie_embedding_text(movie)
+    assert "Original title: Игра" in text
+    assert "Tagline: An unusual gift." in text
+    assert text.splitlines()[-1] == "Keywords: " + ", ".join(movie.keywords[:25])
+    assert len(movie.keywords) == 30
+    assert text.index("Overview:") < text.index("Keywords:")
+
+
+def test_embedding_text_handles_missing_optional_metadata(seed_record):
+    from dataclasses import replace
+    from scripts.movie_dataset import build_movie_embedding_text
+
+    movie = replace(seed_record, original_title=None, genres=())
+    assert build_movie_embedding_text(movie).splitlines() == [
+        "Title: The Game", "Overview: A banker receives an unusual birthday gift.",
+    ]

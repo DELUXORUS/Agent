@@ -544,3 +544,56 @@ def prepare_and_filter_movies(
     report["removed_rows"] = report["input_rows"] - report["output_rows"]
 
     return prepared, report
+
+
+def row_to_movie_seed_record(row: pd.Series) -> MovieSeedRecord:
+    return MovieSeedRecord(
+        tmdb_id=int(row["tmdb_id"]),
+        imdb_id=row["imdb_id"],
+        title=row["title"],
+        normalized_title=row["normalized_title"],
+        original_title=row["original_title"],
+        normalized_original_title=row["normalized_original_title"],
+        original_language=row["original_language"],
+        overview=row["overview"],
+        tagline=row["tagline"],
+        genres=tuple(row["genres"]),
+        actors=tuple(row["actors"]),
+        directors=tuple(row["directors"]),
+        keywords=tuple(row["keywords"]),
+        release_date=row["release_date"],
+        runtime=int(row["runtime"]),
+        vote_average=float(row["vote_average"]),
+        vote_count=int(row["vote_count"]),
+    )
+
+
+def build_movie_seed_records(
+        dataframe: pd.DataFrame
+) -> list[MovieSeedRecord]:
+    return [
+        row_to_movie_seed_record(row)
+        for _, row in dataframe.iterrows()
+    ]
+
+
+def build_movie_embedding_text(
+    movie: MovieSeedRecord,
+) -> str:
+    """Build semantic text; numeric constraints remain in SQL filters."""
+    parts = [f"Title: {movie.title}", f"Overview: {movie.overview}"]
+
+    if (
+        movie.original_title
+        and normalize_search_text(movie.original_title)
+        != normalize_search_text(movie.title)
+    ):
+        parts.append(f"Original title: {movie.original_title}")
+    if movie.tagline:
+        parts.append(f"Tagline: {movie.tagline}")
+    if movie.genres:
+        parts.append(f"Genres: {', '.join(movie.genres)}")
+    if movie.keywords:
+        parts.append(f"Keywords: {', '.join(movie.keywords[:25])}")
+
+    return "\n".join(parts)

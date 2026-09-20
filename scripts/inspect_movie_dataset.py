@@ -3,12 +3,14 @@ from pathlib import Path
 import pandas as pd
 
 from scripts.movie_dataset import (
+    build_movie_embedding_text,
     deduplicate_movies,
     merge_movie_datasets,
     normalize_id_column,
     prepare_and_filter_movies,
     prepare_credits,
     prepare_keywords,
+    build_movie_seed_records
 )
 
 
@@ -129,6 +131,14 @@ def main() -> None:
         prepared_movies["tmdb_id"].eq(2649)
     ]
     print("The Game is present:", not the_game.empty)
+
+    records = build_movie_seed_records(prepared_movies)
+
+    print("Количество записей:", len(records))
+
+    if records:
+        print("Первый фильм:", records[0])
+        print("Текст для embedding:\n", build_movie_embedding_text(records[0]))
 
 
 if __name__ == "__main__":
