@@ -1,7 +1,7 @@
 import pytest
 from types import SimpleNamespace
 
-from app.schemas import MovieDTO
+from tests.factories import make_movie_dto
 from unittest.mock import AsyncMock, Mock
 
 from app.agent.routing import route_after_parse
@@ -128,7 +128,7 @@ async def test_resolve_reference_success():
         ),
     }
 
-    movie = MovieDTO(
+    movie = make_movie_dto(
         id=1,
         title="Interstellar",
         overview="A team travels through a wormhole in space.",
@@ -269,14 +269,14 @@ async def test_resolve_multiple_references():
         ),
     }
 
-    interstellar = MovieDTO(
+    interstellar = make_movie_dto(
         id=1,
         title="Interstellar",
         release_date="2014-11-07",
         vote_average=8.7,
     )
 
-    gravity = MovieDTO(
+    gravity = make_movie_dto(
         id=2,
         title="Gravity",
         release_date="2013-10-04",
@@ -356,7 +356,7 @@ async def test_resolve_multiple_references_with_not_found():
         ),
     }
 
-    interstellar = MovieDTO(
+    interstellar = make_movie_dto(
         id=1,
         title="Interstellar",
     )

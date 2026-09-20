@@ -116,7 +116,7 @@ async def test_db_search_filters_before_limit_and_breaks_rating_ties(database):
         MovieFilters(year_min=2010, year_max=2020, rating_max=8), None, 2
     )
     assert [m.id for m in movies] == [2, 8]
-    assert movies[0].release_date == "2020-12-31"
+    assert movies[0].release_date == date(2020, 12, 31)
 
 
 @pytest.mark.asyncio

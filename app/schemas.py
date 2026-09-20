@@ -1,8 +1,6 @@
 from datetime import date
-from pydantic import (
-    BaseModel, ConfigDict, Field,
-    field_validator
-)
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class TelegramMessageTask(BaseModel):
     user_id: int
@@ -21,21 +19,20 @@ class TelegramCallbackTask(BaseModel):
 
 class MovieDTO(BaseModel):
     id: int
+    tmdb_id: int
+    imdb_id: str | None = None
     title: str
-    overview: str | None = None
-    genres: list[str] = Field(default_factory=list)
+    original_title: str | None = None
+    original_language: str | None = None
+    overview: str
+    genres: list[str]
     actors: list[str] = Field(default_factory=list)
     directors: list[str] = Field(default_factory=list)
     tagline: str | None = None
-    release_date: str | None = None
-    vote_average: float | None = None
+    release_date: date
+    runtime: int = Field(gt=0)
+    vote_average: float = Field(ge=0, le=10, allow_inf_nan=False)
+    vote_count: int = Field(ge=0)
     keywords: list[str] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
-
-    @field_validator("release_date", mode="before")
-    @classmethod
-    def convert_date_to_str(cls, v):
-        if isinstance(v, date):
-            return v.strftime("%Y-%m-%d")
-        return v

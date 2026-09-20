@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 from app.agent.nodes import evaluate_results
 from app.agent.schemas import MovieEvaluation
-from app.schemas import MovieDTO
+from tests.factories import make_movie_dto
 
 
 @pytest.fixture
@@ -16,9 +16,9 @@ def state():
         "user_id": 42,
         "user_query": "Фильмы про космос",
         "candidates": [
-            MovieDTO(id=1, title="Space", overview="A journey through space."),
-            MovieDTO(id=2, title="Village", overview="Life in a village."),
-            MovieDTO(id=3, title="Moon", overview="A mission to the moon."),
+            make_movie_dto(id=1, title="Space", overview="A journey through space."),
+            make_movie_dto(id=2, title="Village", overview="Life in a village."),
+            make_movie_dto(id=3, title="Moon", overview="A mission to the moon."),
         ],
     }
 
@@ -93,3 +93,25 @@ async def test_llm_failure_propagates_without_fallback(state):
 def test_evaluation_schema_removes_duplicates_preserving_order(ids, expected):
     evaluation = MovieEvaluation(accepted_movie_ids=ids)
     assert evaluation.accepted_movie_ids == expected
+
+
+@pytest.mark.asyncio
+async def test_evaluation_limits_metadata_without_mutating_candidate(state):
+    movie = make_movie_dto(
+        imdb_id="tt1234567", actors=["actor"] * 312,
+        directors=["director"] * 30,
+        keywords=[f"keyword-{i}" for i in range(149)],
+    )
+    state["candidates"] = [movie]
+    llm, structured = evaluation_llm(MovieEvaluation(accepted_movie_ids=[movie.id]))
+    result = await evaluate_results(state, llm)
+    payload = json.loads(structured.ainvoke.call_args.args[0][1].content)
+    candidate = payload["candidates"][0]
+    assert set(candidate) == {
+        "id", "title", "original_title", "overview", "tagline", "genres",
+        "release_date", "runtime", "vote_average", "keywords",
+    }
+    assert candidate["keywords"] == movie.keywords[:25]
+    assert candidate["release_date"] == "2000-01-01"
+    assert len(movie.keywords) == 149
+    assert result["selected_movies"][0] is movie

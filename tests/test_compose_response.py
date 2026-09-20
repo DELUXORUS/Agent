@@ -4,7 +4,7 @@ import pytest
 
 from app.agent.nodes import compose_response, evaluate_results
 from app.agent.schemas import MovieEvaluation
-from app.schemas import MovieDTO
+from tests.factories import make_movie_dto
 
 
 @pytest.mark.asyncio
@@ -20,9 +20,9 @@ async def test_empty_selection_returns_no_matches_without_calling_llm():
 
 @pytest.mark.asyncio
 async def test_response_preserves_selection_order_and_does_not_include_rejected_movies():
-    first = MovieDTO(id=20, title="Moon", release_date="2009-06-12", vote_average=7.6)
-    second = MovieDTO(id=10, title="Interstellar", release_date="2014-11-07", vote_average=8.4)
-    rejected = MovieDTO(id=30, title="Rejected movie")
+    first = make_movie_dto(id=20, title="Moon", release_date="2009-06-12", vote_average=7.6)
+    second = make_movie_dto(id=10, title="Interstellar", release_date="2014-11-07", vote_average=8.4)
+    rejected = make_movie_dto(id=30, title="Rejected movie")
     state = {
         "candidates": [second, rejected, first],
         "selected_movies": [first, second],
@@ -43,7 +43,7 @@ async def test_response_preserves_selection_order_and_does_not_include_rejected_
 
 @pytest.mark.asyncio
 async def test_movie_titles_are_escaped_for_telegram_html():
-    movie = MovieDTO(id=1, title='<b>Tom & "Jerry"</b>')
+    movie = make_movie_dto(id=1, title='<b>Tom & "Jerry"</b>')
 
     result = await compose_response({"selected_movies": [movie]}, Mock())
 
@@ -54,12 +54,10 @@ async def test_movie_titles_are_escaped_for_telegram_html():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("release_date,rating,expected", [
-    (None, None, "год неизвестен · рейтинг: нет данных"),
     ("2020-01-01", 0.0, "2020 · рейтинг: 0.0"),
-    (None, 8.0, "год неизвестен · рейтинг: 8.0"),
 ])
-async def test_missing_metadata_and_zero_rating(release_date, rating, expected):
-    movie = MovieDTO(id=1, title="Example", release_date=release_date, vote_average=rating)
+async def test_date_and_zero_rating(release_date, rating, expected):
+    movie = make_movie_dto(id=1, title="Example", release_date=release_date, vote_average=rating)
 
     result = await compose_response({"selected_movies": [movie]}, Mock())
 
@@ -71,8 +69,8 @@ async def test_missing_metadata_and_zero_rating(release_date, rating, expected):
 @pytest.mark.parametrize("accepted_ids", [[2], []])
 async def test_evaluation_result_is_used_by_response_node(accepted_ids):
     candidates = [
-        MovieDTO(id=1, title="Village", overview="Life in a village."),
-        MovieDTO(id=2, title="Moon", overview="A mission to the moon."),
+        make_movie_dto(id=1, title="Village", overview="Life in a village."),
+        make_movie_dto(id=2, title="Moon", overview="A mission to the moon."),
     ]
     state = {"user_query": "Movies about space", "candidates": candidates}
     structured = Mock(ainvoke=AsyncMock(return_value=MovieEvaluation(

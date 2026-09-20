@@ -15,7 +15,7 @@ os.environ.update({
 
 import pytest
 
-from app.schemas import MovieDTO
+from tests.factories import make_movie_dto
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def sample_state():
 
 @pytest.fixture
 def sample_movie_dto():
-    return MovieDTO(
+    return make_movie_dto(
         id=1,
         title="Interstellar",
         overview="A team of explorers travel through a wormhole in space.",

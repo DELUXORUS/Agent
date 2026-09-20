@@ -19,13 +19,13 @@ from app.agent.schemas import (
     ReferenceResolutionStatus as Status,
     ResolvedMovieReference,
 )
-from app.schemas import MovieDTO
+from tests.factories import make_movie_dto
 
 
 def reference_result(status, query="Dune"):
     movies = [
-        MovieDTO(id=1, title=query, release_date="1984-12-14"),
-        MovieDTO(id=2, title=query, release_date="2021-10-22"),
+        make_movie_dto(id=1, title=query, release_date="1984-12-14"),
+        make_movie_dto(id=2, title=query, release_date="2021-10-22"),
     ]
     return ResolvedMovieReference(
         reference=MovieReference(
@@ -111,13 +111,12 @@ async def test_multiple_problems_are_kept_and_resolved_movies_are_omitted():
 
 
 @pytest.mark.asyncio
-async def test_clarification_escapes_html_and_handles_unknown_dates():
+async def test_clarification_escapes_html_and_displays_years():
     ambiguous = reference_result(Status.AMBIGUOUS, '<b>Dune & "friends"</b>')
-    ambiguous.candidates[0].release_date = None
     missing = reference_result(Status.NOT_FOUND, "<unknown>&")
     result = await request_reference_clarification({"resolved_references": [ambiguous, missing]})
     text = result["final_response"]
-    assert "год неизвестен" in text
+    assert "1984" in text and "2021" in text
     assert "&lt;b&gt;Dune &amp; &quot;friends&quot;&lt;/b&gt;" in text
     assert "&lt;unknown&gt;&amp;" in text
     assert "<b>" not in text and "<unknown>" not in text

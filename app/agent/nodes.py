@@ -172,11 +172,7 @@ async def request_reference_clarification(
 
             for movie in resolved.candidates:
                 title = escape(movie.title)
-                year = (
-                    escape(movie.release_date[:4])
-                    if movie.release_date
-                    else "год неизвестен"
-                )
+                year = str(movie.release_date.year)
                 lines.append(f"• {title} — {year}")
 
             lines.append("Укажи год нужного фильма.")
@@ -238,7 +234,21 @@ async def evaluate_results(
 
     payload = {
         "user_query": state["user_query"],
-        "candidates": [movie.model_dump(mode="json") for movie in candidates],
+        "candidates": [
+            {
+                "id": movie.id,
+                "title": movie.title,
+                "original_title": movie.original_title,
+                "overview": movie.overview,
+                "tagline": movie.tagline,
+                "genres": movie.genres,
+                "release_date": movie.release_date.isoformat(),
+                "runtime": movie.runtime,
+                "vote_average": movie.vote_average,
+                "keywords": movie.keywords[:25],
+            }
+            for movie in candidates
+        ],
     }
 
     messages = [
@@ -284,16 +294,8 @@ async def compose_response(
 
         for index, movie in enumerate(selected_movies, start=1):
             title = escape(movie.title)
-            year = (
-                escape(movie.release_date[:4])
-                if movie.release_date
-                else "год неизвестен"
-            )
-            rating = (
-                movie.vote_average
-                if movie.vote_average is not None
-                else "нет данных"
-            )
+            year = str(movie.release_date.year)
+            rating = movie.vote_average
 
             response += f"{index}. {title} — {year} · рейтинг: {rating}\n"
     else:

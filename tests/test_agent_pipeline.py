@@ -12,7 +12,7 @@ from app.agent.schemas import (
     FloatRange, Intent, IntRange, MovieEvaluation, MovieQueryPlan,
     MovieReference, ReferenceRelation, ReferenceResolutionStatus,
 )
-from app.schemas import MovieDTO
+from tests.factories import make_movie_dto
 from app.services.schemas import MovieSearchParams
 
 
@@ -26,11 +26,11 @@ def pipeline(monkeypatch):
         limit=3,
     )
     movies = [
-        MovieDTO(id=20, title="Interstellar", release_date="2014-11-07",
+        make_movie_dto(id=20, title="Interstellar", release_date="2014-11-07",
                  vote_average=8.4, overview="Explorers travel through a wormhole."),
-        MovieDTO(id=10, title="Village", release_date="2010-01-01",
+        make_movie_dto(id=10, title="Village", release_date="2010-01-01",
                  vote_average=7.5, overview="Life in a village."),
-        MovieDTO(id=30, title="Moon", release_date="2009-06-12",
+        make_movie_dto(id=30, title="Moon", release_date="2009-06-12",
                  vote_average=7.6, overview="A mission to the moon."),
     ]
     parser = Mock(ainvoke=AsyncMock(return_value=plan))
@@ -94,7 +94,7 @@ async def test_recommendation_graph_produces_filtered_final_response(pipeline):
     payload = json.loads(pipeline.evaluator.ainvoke.call_args.args[0][1].content)
     assert payload == {
         "user_query": pipeline.initial["user_query"],
-        "candidates": [movie.model_dump(mode="json") for movie in pipeline.movies],
+        "candidates": [movie.model_dump(mode="json", include={"id", "title", "original_title", "overview", "tagline", "genres", "release_date", "runtime", "vote_average", "keywords"}) for movie in pipeline.movies],
     }
     pipeline.llm.ainvoke.assert_not_awaited()
 
@@ -164,8 +164,8 @@ async def test_resolved_references_continue_to_recommendations(pipeline):
         MovieReference(query="Gravity", exact_title=True, relation=ReferenceRelation.EXCLUDE),
     ]
     pipeline.service.resolve_reference.side_effect = [
-        [MovieDTO(id=100, title="Dune", release_date="1984-12-14")],
-        [MovieDTO(id=200, title="Gravity", release_date="2013-10-04")],
+        [make_movie_dto(id=100, title="Dune", release_date="1984-12-14")],
+        [make_movie_dto(id=200, title="Gravity", release_date="2013-10-04")],
     ]
     result = await pipeline.graph.ainvoke(pipeline.initial)
 

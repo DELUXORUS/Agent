@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import UserMovieHistory
-from app.schemas import MovieDTO
+from tests.factories import make_movie_dto
 
 
 def load_handler(monkeypatch, graph, session_factory):
@@ -32,7 +32,7 @@ def load_handler(monkeypatch, graph, session_factory):
 async def test_generate_response_builds_agent_state_and_returns_selected_movies(
     monkeypatch,
 ):
-    movies = [MovieDTO(id=3, title="Moon station")]
+    movies = [make_movie_dto(id=3, title="Moon station")]
     graph = Mock(ainvoke=AsyncMock(return_value={
         "final_response": "Вот подходящий фильм",
         "selected_movies": movies,
@@ -58,7 +58,7 @@ async def test_generate_response_builds_agent_state_and_returns_selected_movies(
 async def test_message_handler_builds_keyboard_and_sends_response(monkeypatch):
     graph = Mock()
     handler = load_handler(monkeypatch, graph, Mock())
-    movies = [MovieDTO(id=3, title="Moon station")]
+    movies = [make_movie_dto(id=3, title="Moon station")]
     message_handler = handler.handle_telegram_messages._original_call
     message_handler.__globals__["generate_response"] = AsyncMock(
         return_value=("Вот подходящий фильм", movies)
