@@ -17,21 +17,45 @@ from app.services.movie_search import MovieSearchService
 from app.services.schemas import MovieSearchParams
 
 
+def make_movie(
+    movie_id: int,
+    title: str,
+    release_date: date,
+    vote_average: float,
+) -> Movie:
+    return Movie(
+        id=movie_id,
+        tmdb_id=1000 + movie_id,
+        imdb_id=f"tt{movie_id:07d}",
+        title=title,
+        normalized_title=title.casefold(),
+        overview=f"Overview for {title}",
+        genres=["drama"],
+        actors=[],
+        directors=[],
+        keywords=[],
+        release_date=release_date,
+        runtime=100,
+        vote_average=vote_average,
+        vote_count=100,
+    )
+
+
 @pytest.fixture
 def database():
     engine = create_engine("sqlite://")
     Base.metadata.create_all(engine)
     with Session(engine) as session:
         session.add_all([
-            Movie(id=1, title="Lower boundary", release_date=date(2010, 1, 1), vote_average=7),
-            Movie(id=2, title="Upper boundary", release_date=date(2020, 12, 31), vote_average=8),
-            Movie(id=3, title="Too old", release_date=date(2009, 12, 31), vote_average=9),
-            Movie(id=4, title="Too new", release_date=date(2021, 1, 1), vote_average=9),
-            Movie(id=5, title="Low rating", release_date=date(2015, 1, 1), vote_average=6.9),
-            Movie(id=6, title="High rating", release_date=date(2015, 1, 1), vote_average=8.1),
-            Movie(id=7, title="Unknown", release_date=None, vote_average=None),
-            Movie(id=8, title="Same rating", release_date=date(2015, 1, 1), vote_average=8),
-            Movie(id=9, title="Zero rating", release_date=date(2015, 1, 1), vote_average=0),
+            make_movie(1, "Lower boundary", date(2010, 1, 1), 7),
+            make_movie(2, "Upper boundary", date(2020, 12, 31), 8),
+            make_movie(3, "Too old", date(2009, 12, 31), 9),
+            make_movie(4, "Too new", date(2021, 1, 1), 9),
+            make_movie(5, "Low rating", date(2015, 1, 1), 6.9),
+            make_movie(6, "High rating", date(2015, 1, 1), 8.1),
+            make_movie(7, "Low metadata score", date(2015, 1, 1), 5),
+            make_movie(8, "Same rating", date(2015, 1, 1), 8),
+            make_movie(9, "Zero rating", date(2015, 1, 1), 0),
             UserMovieHistory(user_id=42, movie_id=2, id=1),
             UserMovieHistory(user_id=99, movie_id=1, id=2),
         ])

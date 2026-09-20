@@ -132,12 +132,12 @@ async def test_resolve_reference_success():
         id=1,
         title="Interstellar",
         overview="A team travels through a wormhole in space.",
-        genres="Science Fiction, Drama",
-        credits="Christopher Nolan",
+        genres=["science fiction", "drama"],
+        directors=["christopher nolan"],
         tagline="Mankind was born on Earth.",
         release_date="2014-11-07",
         vote_average=8.7,
-        keywords="space, wormhole, future",
+        keywords=["space", "wormhole", "future"],
     )
 
     movie_search = Mock()

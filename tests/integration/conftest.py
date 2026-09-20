@@ -61,23 +61,40 @@ async def pg_catalog(pg_session: AsyncSession) -> AsyncSession:
     def vector(x: float, y: float) -> list[float]:
         return [x, y] + [0.0] * 382
 
+    def movie(
+        movie_id: int,
+        title: str,
+        release_date: date,
+        vote_average: float,
+        embedding: list[float] | None,
+    ) -> Movie:
+        return Movie(
+            id=movie_id,
+            tmdb_id=1000 + movie_id,
+            imdb_id=f"tt{movie_id:07d}",
+            title=title,
+            normalized_title=title.casefold(),
+            overview=f"Overview for {title}",
+            genres=["science fiction"],
+            actors=[],
+            directors=[],
+            keywords=[],
+            release_date=release_date,
+            runtime=100,
+            vote_average=vote_average,
+            vote_count=100,
+            embedding=embedding,
+        )
+
     pg_session.add_all([
-        Movie(id=1, title="Orbit", release_date=date(2010, 1, 1),
-              vote_average=7.0, embedding=vector(1, 0)),
-        Movie(id=2, title="Orbit", release_date=date(2020, 12, 31),
-              vote_average=8.0, embedding=vector(0.8, 0.6)),
-        Movie(id=3, title="Moon station", release_date=date(2015, 6, 1),
-              vote_average=8.0, embedding=vector(0.6, 0.8)),
-        Movie(id=4, title="Village", release_date=date(2018, 6, 1),
-              vote_average=9.0, embedding=vector(0, 1)),
-        Movie(id=5, title="Old orbit", release_date=date(2009, 12, 31),
-              vote_average=9.0, embedding=vector(1, 0)),
-        Movie(id=6, title="Low rated orbit", release_date=date(2015, 6, 1),
-              vote_average=6.9, embedding=vector(1, 0)),
-        Movie(id=7, title="Unknown metadata", release_date=None,
-              vote_average=None, embedding=vector(0.6, 0.8)),
-        Movie(id=8, title="No embedding", release_date=date(2019, 6, 1),
-              vote_average=8.5, embedding=None),
+        movie(1, "Orbit", date(2010, 1, 1), 7.0, vector(1, 0)),
+        movie(2, "Orbit", date(2020, 12, 31), 8.0, vector(0.8, 0.6)),
+        movie(3, "Moon station", date(2015, 6, 1), 8.0, vector(0.6, 0.8)),
+        movie(4, "Village", date(2018, 6, 1), 9.0, vector(0, 1)),
+        movie(5, "Old orbit", date(2009, 12, 31), 9.0, vector(1, 0)),
+        movie(6, "Low rated orbit", date(2015, 6, 1), 6.9, vector(1, 0)),
+        movie(7, "Low metadata score", date(2000, 6, 1), 5.0, vector(0.6, 0.8)),
+        movie(8, "No embedding", date(2019, 6, 1), 8.5, None),
     ])
     # Insert parent records before the foreign-key references.
     await pg_session.flush()

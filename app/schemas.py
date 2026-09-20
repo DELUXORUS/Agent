@@ -1,6 +1,6 @@
 from datetime import date
 from pydantic import (
-    BaseModel, ConfigDict,
+    BaseModel, ConfigDict, Field,
     field_validator
 )
 
@@ -23,12 +23,13 @@ class MovieDTO(BaseModel):
     id: int
     title: str
     overview: str | None = None
-    genres: str | None = None
-    credits: str | None = None
+    genres: list[str] = Field(default_factory=list)
+    actors: list[str] = Field(default_factory=list)
+    directors: list[str] = Field(default_factory=list)
     tagline: str | None = None
     release_date: str | None = None
     vote_average: float | None = None
-    keywords: str | None = None
+    keywords: list[str] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 

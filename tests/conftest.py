@@ -50,7 +50,7 @@ def sample_movie_dto():
         id=1,
         title="Interstellar",
         overview="A team of explorers travel through a wormhole in space.",
-        genres="Adventure, Drama, Sci-Fi",
+        genres=["adventure", "drama", "science fiction"],
         release_date="2014-11-05",
         vote_average=8.4,
     )

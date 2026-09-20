@@ -16,19 +16,38 @@ from app.db.operations import Operations
 from app.services.movie_search import MovieSearchService
 
 
+def make_movie(movie_id: int, title: str, release_date: date) -> Movie:
+    return Movie(
+        id=movie_id,
+        tmdb_id=1000 + movie_id,
+        imdb_id=f"tt{movie_id:07d}",
+        title=title,
+        normalized_title=title.casefold(),
+        overview=f"Overview for {title}",
+        genres=["science fiction"],
+        actors=[],
+        directors=[],
+        keywords=[],
+        release_date=release_date,
+        runtime=120,
+        vote_average=7.0,
+        vote_count=100,
+    )
+
+
 @pytest.fixture
 def database():
     engine = create_engine("sqlite://")
     Base.metadata.create_all(engine)
     with Session(engine) as session:
         session.add_all([
-            Movie(id=1, title="Dune", release_date=date(1983, 12, 31)),
-            Movie(id=2, title="Dune", release_date=date(1984, 1, 1)),
-            Movie(id=3, title="Dune", release_date=date(1984, 12, 31)),
-            Movie(id=4, title="Dune", release_date=date(1985, 1, 1)),
-            Movie(id=5, title="Dune", release_date=date(2021, 10, 22)),
-            Movie(id=6, title="Dune", release_date=None),
-            Movie(id=7, title="Other title", release_date=date(1984, 6, 1)),
+            make_movie(1, "Dune", date(1983, 12, 31)),
+            make_movie(2, "Dune", date(1984, 1, 1)),
+            make_movie(3, "Dune", date(1984, 12, 31)),
+            make_movie(4, "Dune", date(1985, 1, 1)),
+            make_movie(5, "Dune", date(2021, 10, 22)),
+            make_movie(6, "Dune", date(2022, 1, 1)),
+            make_movie(7, "Other title", date(1984, 6, 1)),
         ])
         session.commit()
         yield session
