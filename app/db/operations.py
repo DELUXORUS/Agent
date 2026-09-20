@@ -1,7 +1,8 @@
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from datetime import date
 
 from app.schemas import MovieDTO
+from app.core.text_normalization import normalize_search_text
 
 from app.db.models import Movie
 from app.db.models import UserMovieHistory
@@ -56,10 +57,14 @@ class Operations:
         title: str,
         year: int | None = None,
     ) -> list[MovieDTO]:
-        stmt = (
-            select(Movie)
-            .where(Movie.title == title)
-        )
+        normalized_title = normalize_search_text(title)
+        if not normalized_title:
+            return []
+
+        stmt = select(Movie).where(or_(
+            Movie.normalized_title == normalized_title,
+            Movie.normalized_original_title == normalized_title,
+        ))
 
         if year is not None:
             stmt = stmt.where(

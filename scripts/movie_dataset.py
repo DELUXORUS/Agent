@@ -1,9 +1,10 @@
 from ast import literal_eval
 from dataclasses import dataclass
 from datetime import date
-import unicodedata
 
 import pandas as pd
+
+from app.core.text_normalization import normalize_search_text
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,16 +31,6 @@ class MovieSeedRecord:
 
     vote_average: float
     vote_count: int
-
-
-def normalize_search_text(value: str) -> str:
-    if not isinstance(value, str):
-        raise TypeError("Search text must be a string")
-
-    unicode_normalized = unicodedata.normalize("NFKC", value)
-    whitespace_normalized = " ".join(unicode_normalized.split())
-
-    return whitespace_normalized.casefold()
 
 
 def normalize_optional_search_text(value: object) -> str | None:

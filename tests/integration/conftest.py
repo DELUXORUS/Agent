@@ -8,6 +8,7 @@ import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
+from app.core.text_normalization import normalize_search_text
 from app.db.models import Base, Movie, UserMovieHistory
 
 
@@ -73,7 +74,7 @@ async def pg_catalog(pg_session: AsyncSession) -> AsyncSession:
             tmdb_id=1000 + movie_id,
             imdb_id=f"tt{movie_id:07d}",
             title=title,
-            normalized_title=title.casefold(),
+            normalized_title=normalize_search_text(title),
             overview=f"Overview for {title}",
             genres=["science fiction"],
             actors=[],

@@ -11,6 +11,7 @@ from app.agent.routing import route_after_resolve_references
 from app.agent.schemas import (
     Intent, IntRange, MovieQueryPlan, MovieReference, ReferenceResolutionStatus,
 )
+from app.core.text_normalization import normalize_search_text
 from app.db.models import Base, Movie
 from app.db.operations import Operations
 from app.services.movie_search import MovieSearchService
@@ -22,7 +23,7 @@ def make_movie(movie_id: int, title: str, release_date: date) -> Movie:
         tmdb_id=1000 + movie_id,
         imdb_id=f"tt{movie_id:07d}",
         title=title,
-        normalized_title=title.casefold(),
+        normalized_title=normalize_search_text(title),
         overview=f"Overview for {title}",
         genres=["science fiction"],
         actors=[],
@@ -58,6 +59,7 @@ def database():
 @pytest.mark.parametrize("title,year,expected_ids", [
     ("Dune", None, [1, 2, 3, 4, 5, 6]),
     ("Dune", 1984, [2, 3]),
+    ("  ＤＵＮＥ\t", 1984, [2, 3]),
     ("Dune", 2021, [5]),
     ("Dune", 2000, []),
     ("Unknown", None, []),
@@ -103,3 +105,11 @@ async def test_reference_year_reaches_database(
     assert route_after_resolve_references(update) == expected_route
     embedder.get_embedding.assert_not_awaited()
     session.__aexit__.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("title", ["", "  \t\n"])
+async def test_empty_title_does_not_query_database(title):
+    session = Mock(execute=AsyncMock())
+    assert await Operations(session).find_movies_by_title(title) == []
+    session.execute.assert_not_awaited()

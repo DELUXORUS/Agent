@@ -11,6 +11,7 @@ from app.agent.nodes import search_movies
 from app.agent.schemas import FloatRange, IntRange, Intent, MovieQueryPlan
 from app.db.filters import MovieFilters, apply_movie_filters
 from app.db.mappers import build_movie_filters
+from app.core.text_normalization import normalize_search_text
 from app.db.models import Base, Movie, UserMovieHistory
 from app.db.operations import Operations
 from app.services.movie_search import MovieSearchService
@@ -28,7 +29,7 @@ def make_movie(
         tmdb_id=1000 + movie_id,
         imdb_id=f"tt{movie_id:07d}",
         title=title,
-        normalized_title=title.casefold(),
+        normalized_title=normalize_search_text(title),
         overview=f"Overview for {title}",
         genres=["drama"],
         actors=[],

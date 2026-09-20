@@ -1,10 +1,10 @@
 import pandas as pd
 import pytest
 
+from app.core.text_normalization import normalize_search_text
 from scripts.movie_dataset import (
     extract_directors,
     extract_names,
-    normalize_search_text,
     prepare_and_filter_movies,
 )
 
