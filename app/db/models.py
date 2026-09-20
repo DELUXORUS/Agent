@@ -12,6 +12,8 @@ from sqlalchemy.orm import (
 )
 from pgvector.sqlalchemy import Vector
 
+from app.constants import EMBEDDING_DIMENSION
+
 
 class Base(DeclarativeBase):
     pass
@@ -30,7 +32,9 @@ class Movie(Base):
     keywords: Mapped[str | None] = mapped_column(Text)
     tagline: Mapped[str | None] = mapped_column(Text)
 
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(384))
+    embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(EMBEDDING_DIMENSION)
+    )
 
     __table_args__ = (
         Index(
