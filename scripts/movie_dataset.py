@@ -1,6 +1,7 @@
 from ast import literal_eval
 from dataclasses import dataclass
 from datetime import date
+import unicodedata
 
 import pandas as pd
 
@@ -11,7 +12,9 @@ class MovieSeedRecord:
     imdb_id: str | None
 
     title: str
+    normalized_title: str
     original_title: str | None
+    normalized_original_title: str | None
     original_language: str | None
 
     overview: str
@@ -27,6 +30,25 @@ class MovieSeedRecord:
 
     vote_average: float
     vote_count: int
+
+
+def normalize_search_text(value: str) -> str:
+    if not isinstance(value, str):
+        raise TypeError("Search text must be a string")
+
+    unicode_normalized = unicodedata.normalize("NFKC", value)
+    whitespace_normalized = " ".join(unicode_normalized.split())
+
+    return whitespace_normalized.casefold()
+
+
+def normalize_optional_search_text(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+
+    normalized = normalize_search_text(value)
+
+    return normalized or None
 
 
 def parse_list_of_dicts(value: object) -> list[dict[str, object]]:
@@ -67,7 +89,7 @@ def extract_names(value: object) -> tuple[str, ...]:
         if not isinstance(name, str):
             continue
 
-        name = name.strip()
+        name = normalize_search_text(name)
 
         if not name or name in seen_names:
             continue
@@ -93,7 +115,7 @@ def extract_directors(value: object) -> tuple[str, ...]:
         if not isinstance(name, str):
             continue
 
-        name = name.strip()
+        name = normalize_search_text(name)
 
         if not name or name in seen_names:
             continue
@@ -413,6 +435,13 @@ def prepare_and_filter_movies(
     ):
         prepared[column] = prepared[column].map(clean_optional_text)
 
+    prepared["normalized_title"] = prepared["title"].map(
+        normalize_optional_search_text
+    )
+    prepared["normalized_original_title"] = prepared[
+        "original_title"
+    ].map(normalize_optional_search_text)
+
     prepared["genres"] = prepared["genres"].map(extract_names)
     prepared["adult"] = prepared["adult"].map(parse_optional_bool)
     prepared["video"] = prepared["video"].map(parse_optional_bool)
@@ -488,7 +517,7 @@ def prepare_and_filter_movies(
     apply_rule(
         "tv_movie",
         prepared["genres"].map(
-            lambda genres: "TV Movie" not in genres
+            lambda genres: "tv movie" not in genres
         ),
     )
 
@@ -503,7 +532,9 @@ def prepare_and_filter_movies(
             "tmdb_id",
             "imdb_id",
             "title",
+            "normalized_title",
             "original_title",
+            "normalized_original_title",
             "original_language",
             "overview",
             "tagline",
