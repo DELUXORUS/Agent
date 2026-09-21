@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from app.agent.nodes import compose_response, evaluate_results
-from app.agent.schemas import MovieEvaluation
+from app.agent.schemas import Intent, MovieEvaluation, MovieQueryPlan
 from tests.factories import make_movie_dto
 
 
@@ -72,7 +72,11 @@ async def test_evaluation_result_is_used_by_response_node(accepted_ids):
         make_movie_dto(id=1, title="Village", overview="Life in a village."),
         make_movie_dto(id=2, title="Moon", overview="A mission to the moon."),
     ]
-    state = {"user_query": "Movies about space", "candidates": candidates}
+    state = {
+        "user_query": "Movies about space",
+        "query_plan": MovieQueryPlan(intent=Intent.RECOMMEND_MOVIES),
+        "candidates": candidates,
+    }
     structured = Mock(ainvoke=AsyncMock(return_value=MovieEvaluation(
         accepted_movie_ids=accepted_ids,
     )))

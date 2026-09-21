@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.agent.nodes import evaluate_results
-from app.agent.schemas import MovieEvaluation
+from app.agent.schemas import Intent, MovieEvaluation, MovieQueryPlan
 from tests.factories import make_movie_dto
 
 
@@ -15,6 +15,7 @@ def state():
         "request_id": "evaluation-test",
         "user_id": 42,
         "user_query": "Фильмы про космос",
+        "query_plan": MovieQueryPlan(intent=Intent.RECOMMEND_MOVIES),
         "candidates": [
             make_movie_dto(id=1, title="Space", overview="A journey through space."),
             make_movie_dto(id=2, title="Village", overview="Life in a village."),
@@ -54,6 +55,16 @@ async def test_empty_candidates_skip_llm(state):
 async def test_all_rejected_is_a_successful_empty_selection(state):
     llm, _ = evaluation_llm({"accepted_movie_ids": []})
     assert await evaluate_results(state, llm) == {"selected_movies": []}
+
+
+@pytest.mark.asyncio
+async def test_evaluation_applies_user_facing_result_limit(state):
+    state["query_plan"].result_limit = 2
+    llm, _ = evaluation_llm({"accepted_movie_ids": [1, 2, 3]})
+
+    result = await evaluate_results(state, llm)
+
+    assert [movie.id for movie in result["selected_movies"]] == [1, 2]
 
 
 @pytest.mark.asyncio

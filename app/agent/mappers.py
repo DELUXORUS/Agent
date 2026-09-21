@@ -43,7 +43,5 @@ def build_movie_search_params(
 
         similar_movie_ids=similar_movie_ids,
         excluded_movie_ids=excluded_movie_ids,
-
-        limit=query_plan.limit,
     )
 

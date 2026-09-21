@@ -28,7 +28,7 @@ async def test_graph_uses_real_service_and_postgresql(
         semantic_query="space",
         year=IntRange(min=2010, max=2020),
         rating=FloatRange(min=7.0, max=8.0),
-        limit=3,
+        result_limit=3,
     )
     parser = Mock(ainvoke=AsyncMock(return_value=plan))
     evaluator = Mock(ainvoke=AsyncMock(return_value=MovieEvaluation(

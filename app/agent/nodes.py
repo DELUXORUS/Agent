@@ -245,7 +245,7 @@ async def evaluate_results(
         movie
         for movie in candidates
         if movie.id in accepted_ids
-    ]
+    ][:state["query_plan"].result_limit]
 
     return {"selected_movies": selected_movies}
 

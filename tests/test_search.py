@@ -152,7 +152,8 @@ async def test_node_service_and_db_search_work_together(database):
     state = {"request_id": "test", "user_id": 42, "user_query": "Films from 2010 to 2020",
              "query_plan": MovieQueryPlan(intent=Intent.RECOMMEND_MOVIES,
                                           year=IntRange(min=2010, max=2020),
-                                          rating=FloatRange(min=7, max=8), limit=2)}
+                                          rating=FloatRange(min=7, max=8),
+                                          result_limit=2)}
     result = await search_movies(state, service)
     # User 42 watched movie 2; user 99's history must not exclude movie 1.
     assert [m.id for m in result["candidates"]] == [8, 1]
@@ -170,7 +171,11 @@ async def test_semantic_search_passes_embedding_and_merges_exclusions(monkeypatc
     operations = Mock(get_watched_movie_ids=AsyncMock(return_value=[2, 3]),
                       search_movies=AsyncMock(return_value=[]))
     monkeypatch.setattr("app.services.movie_search.Operations", Mock(return_value=operations))
-    params = MovieSearchParams(semantic_query="space", excluded_movie_ids=[1, 2], limit=3)
+    params = MovieSearchParams(
+        semantic_query="space",
+        excluded_movie_ids=[1, 2],
+        candidate_limit=3,
+    )
     assert await MovieSearchService(factory, embedder).search_recommendations(42, params) == []
     embedder.get_embedding.assert_awaited_once_with("space")
     operations.get_watched_movie_ids.assert_awaited_once_with(42)

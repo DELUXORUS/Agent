@@ -77,7 +77,7 @@ async def test_service_normalizes_combined_filters_before_vector_limit(pg_catalo
         genres=[" Ａ ", "a", " "], actors=[" A "], directors=["a"],
         excluded_genres=[" B "], excluded_actors=["b"], excluded_directors=["B"],
         runtime_min=90, runtime_max=120, year_min=2010, rating_min=7,
-        semantic_query="space", limit=1,
+        semantic_query="space", candidate_limit=1,
     )
     movies = await service.search_recommendations(0, params)
     assert [movie.id for movie in movies] == [2]

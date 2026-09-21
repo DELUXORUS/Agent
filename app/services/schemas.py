@@ -26,4 +26,4 @@ class MovieSearchParams:
     excluded_actors: list[str] = field(default_factory=list)
     excluded_directors: list[str] = field(default_factory=list)
 
-    limit: int = 5
+    candidate_limit: int = 10

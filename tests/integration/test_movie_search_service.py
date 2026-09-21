@@ -44,7 +44,7 @@ async def test_search_excludes_only_current_users_history(
 
     movies = await service.search_recommendations(
         user_id=user_id,
-        params=MovieSearchParams(semantic_query="space", limit=4),
+        params=MovieSearchParams(semantic_query="space", candidate_limit=4),
     )
 
     assert [movie.id for movie in movies] == expected_ids
@@ -66,7 +66,7 @@ async def test_search_merges_explicit_and_watched_exclusions(
     params = MovieSearchParams(
         semantic_query="space",
         excluded_movie_ids=[5, 6],
-        limit=3,
+        candidate_limit=3,
     )
 
     movies = await service.search_recommendations(
@@ -92,7 +92,7 @@ async def test_search_without_semantic_query_uses_rating_order(
         year_max=2020,
         rating_min=7.0,
         rating_max=8.0,
-        limit=5,
+        candidate_limit=5,
     )
 
     movies = await service.search_recommendations(
@@ -116,7 +116,7 @@ async def test_reference_movie_embedding_drives_search_and_is_excluded(
 
     movies = await service.search_recommendations(
         user_id=0,
-        params=MovieSearchParams(similar_movie_ids=[4], limit=3),
+        params=MovieSearchParams(similar_movie_ids=[4], candidate_limit=3),
     )
 
     assert [movie.id for movie in movies] == [3, 7, 2]
@@ -135,7 +135,7 @@ async def test_multiple_reference_embeddings_are_averaged(
 
     movies = await service.search_recommendations(
         user_id=0,
-        params=MovieSearchParams(similar_movie_ids=[1, 4], limit=3),
+        params=MovieSearchParams(similar_movie_ids=[1, 4], candidate_limit=3),
     )
 
     assert [movie.id for movie in movies] == [2, 3, 7]
@@ -160,7 +160,7 @@ async def test_semantic_and_reference_embeddings_have_equal_weight(
         params=MovieSearchParams(
             semantic_query="space",
             similar_movie_ids=[4],
-            limit=3,
+            candidate_limit=3,
         ),
     )
 

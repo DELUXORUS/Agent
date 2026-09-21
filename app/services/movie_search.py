@@ -118,7 +118,7 @@ class MovieSearchService:
             return await operations.search_movies(
                 filters=filters,
                 query_embedding=result_embedding,
-                limit=params.limit,
+                limit=params.candidate_limit,
             )
 
 

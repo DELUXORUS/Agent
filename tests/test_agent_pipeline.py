@@ -23,7 +23,7 @@ def pipeline(monkeypatch):
         semantic_query="space exploration",
         year=IntRange(min=2000, max=2024),
         rating=FloatRange(min=7),
-        limit=3,
+        result_limit=3,
     )
     movies = [
         make_movie_dto(id=20, title="Interstellar", release_date="2014-11-07",
@@ -85,7 +85,7 @@ async def test_recommendation_graph_produces_filtered_final_response(pipeline):
     assert "Village" not in text
     pipeline.service.search_recommendations.assert_awaited_once_with(
         42, MovieSearchParams(semantic_query="space exploration", year_min=2000,
-                              year_max=2024, rating_min=7, limit=3),
+                              year_max=2024, rating_min=7),
     )
     pipeline.service.resolve_reference.assert_not_awaited()
     pipeline.parser.ainvoke.assert_awaited_once()
@@ -175,7 +175,7 @@ async def test_resolved_references_continue_to_recommendations(pipeline):
     pipeline.service.resolve_reference.assert_any_await(query="Gravity", exact_title=True, year=None)
     pipeline.service.search_recommendations.assert_awaited_once_with(
         42, MovieSearchParams(semantic_query="space exploration", year_min=2000,
-                              year_max=2024, rating_min=7, limit=3,
+                              year_max=2024, rating_min=7,
                               similar_movie_ids=[100], excluded_movie_ids=[200]),
     )
     assert "1. Interstellar" in result["final_response"]

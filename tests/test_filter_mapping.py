@@ -10,11 +10,14 @@ def test_all_entity_filters_survive_mapping_without_mutating_plan():
         **{name: EntityFilter(include=[" A  B ", "a b", " "], exclude=[" C "])
            for name in ("genres", "actors", "directors")},
     )
-    filters = build_movie_filters(build_movie_search_params({"query_plan": plan}))
+    params = build_movie_search_params({"query_plan": plan})
+    filters = build_movie_filters(params)
     for name in ("genres", "actors", "directors"):
         assert getattr(filters, f"included_{name}") == ["a b"]
         assert getattr(filters, f"excluded_{name}") == ["c"]
         assert getattr(plan, name).include == [" A  B ", "a b", " "]
     assert route_after_parse({"query_plan": plan}) == "search_movies"
+    assert params.candidate_limit == 10
+    assert plan.result_limit == 5
     plan.reference_movies = [MovieReference(query="Dune", exact_title=True)]
     assert route_after_parse({"query_plan": plan}) == "resolve_references"

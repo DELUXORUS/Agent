@@ -86,4 +86,9 @@ class MovieQueryPlan(BaseModel):
 
     semantic_query: str | None = None
 
-    limit: int = Field(default=5, ge=1, le=10)
+    result_limit: int = Field(
+        default=5,
+        ge=1,
+        le=10,
+        description="Maximum number of movies shown to the user.",
+    )
