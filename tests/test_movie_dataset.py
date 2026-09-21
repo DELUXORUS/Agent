@@ -129,3 +129,93 @@ def test_embedding_text_handles_missing_optional_metadata(seed_record):
     assert build_movie_embedding_text(movie).splitlines() == [
         "Title: The Game", "Overview: A banker receives an unusual birthday gift.",
     ]
+
+
+def test_movie_rows_preserve_pairing_and_python_types(seed_record):
+    from dataclasses import replace
+    from app.constants import EMBEDDING_DIMENSION
+    from scripts.seed_db import build_movie_rows
+
+    second = replace(seed_record, tmdb_id=2650, title="Another film")
+    vectors = [[0.1] * EMBEDDING_DIMENSION, [0.2] * EMBEDDING_DIMENSION]
+    rows = build_movie_rows([seed_record, second], vectors)
+    assert [row["tmdb_id"] for row in rows] == [2649, 2650]
+    assert [row["embedding"] for row in rows] == vectors
+    assert rows[0]["release_date"] == seed_record.release_date
+    assert rows[0]["tagline"] is None
+    assert rows[0]["title"] == seed_record.title
+    assert "id" not in rows[0]
+    for field in ("genres", "actors", "directors", "keywords"):
+        assert rows[0][field] == list(getattr(seed_record, field))
+    rows[0]["genres"].append("comedy")
+    rows[0]["embedding"][0] = 1.0
+    assert "comedy" not in seed_record.genres
+    assert "comedy" not in rows[1]["genres"]
+    assert vectors[0][0] == 0.1
+
+
+@pytest.mark.parametrize("movie_count,vector_count", [(1, 0), (0, 1), (1, 2), (2, 1)])
+def test_movie_rows_reject_mismatched_counts(seed_record, movie_count, vector_count):
+    from scripts.seed_db import build_movie_rows
+
+    with pytest.raises(ValueError):
+        build_movie_rows([seed_record] * movie_count, [[0.1]] * vector_count)
+
+
+def test_movie_rows_accept_empty_batch():
+    from scripts.seed_db import build_movie_rows
+
+    assert build_movie_rows([], []) == []
+
+
+@pytest.mark.asyncio
+async def test_seed_movies_processes_records_in_batches(monkeypatch, seed_record):
+    from dataclasses import replace
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from app.constants import EMBEDDING_DIMENSION
+    import scripts.seed_db as seed_db
+
+    movies = [
+        replace(seed_record, tmdb_id=seed_record.tmdb_id + index)
+        for index in range(5)
+    ]
+
+    async def embed(texts, batch_size):
+        assert batch_size == 32
+        return [[0.1] * EMBEDDING_DIMENSION for _ in texts]
+
+    embedder = SimpleNamespace(get_embeddings=AsyncMock(side_effect=embed))
+    upsert = AsyncMock()
+    monkeypatch.setattr(seed_db, "upsert_movies", upsert)
+
+    seeded_count = await seed_db.seed_movies(
+        AsyncMock(),
+        movies,
+        embedder,
+        batch_size=2,
+    )
+
+    assert seeded_count == 5
+    assert embedder.get_embeddings.await_count == 3
+    assert upsert.await_count == 3
+    assert [
+        [row["tmdb_id"] for row in call.args[1]]
+        for call in upsert.await_args_list
+    ] == [[2649, 2650], [2651, 2652], [2653]]
+
+
+@pytest.mark.asyncio
+async def test_seed_movies_rejects_non_positive_batch_size(seed_record):
+    from unittest.mock import AsyncMock
+
+    from scripts.seed_db import seed_movies
+
+    with pytest.raises(ValueError, match="batch_size must be greater than zero"):
+        await seed_movies(
+            AsyncMock(),
+            [seed_record],
+            AsyncMock(),
+            batch_size=0,
+        )
