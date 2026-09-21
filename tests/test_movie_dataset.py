@@ -131,24 +131,24 @@ def seed_record():
     )
 
 
-def test_embedding_text_preserves_display_text_and_omits_duplicate_title(seed_record):
+def test_embedding_text_uses_overview_and_genres_without_titles(seed_record):
     from scripts.movie_dataset import build_movie_embedding_text
 
     assert build_movie_embedding_text(seed_record) == (
-        "Title: The Game\n"
         "Overview: A banker receives an unusual birthday gift.\n"
         "Genres: drama, thriller"
     )
 
 
-def test_embedding_text_includes_original_title_and_limits_keywords(seed_record):
+def test_embedding_text_includes_tagline_and_limits_keywords(seed_record):
     from dataclasses import replace
     from scripts.movie_dataset import build_movie_embedding_text
 
     movie = replace(seed_record, original_title="Игра", tagline="An unusual gift.",
                     keywords=tuple(f"keyword-{i}" for i in range(30)))
     text = build_movie_embedding_text(movie)
-    assert "Original title: Игра" in text
+    assert "Title:" not in text
+    assert "Original title:" not in text
     assert "Tagline: An unusual gift." in text
     assert text.splitlines()[-1] == "Keywords: " + ", ".join(movie.keywords[:25])
     assert len(movie.keywords) == 30
@@ -161,7 +161,7 @@ def test_embedding_text_handles_missing_optional_metadata(seed_record):
 
     movie = replace(seed_record, original_title=None, genres=())
     assert build_movie_embedding_text(movie).splitlines() == [
-        "Title: The Game", "Overview: A banker receives an unusual birthday gift.",
+        "Overview: A banker receives an unusual birthday gift.",
     ]
 
 

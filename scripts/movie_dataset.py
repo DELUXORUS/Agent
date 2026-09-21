@@ -582,20 +582,17 @@ def build_movie_seed_records(
 def build_movie_embedding_text(
     movie: MovieSeedRecord,
 ) -> str:
-    """Build semantic text; numeric constraints remain in SQL filters."""
-    parts = [f"Title: {movie.title}", f"Overview: {movie.overview}"]
+    parts = [f"Overview: {movie.overview}"]
 
-    if (
-        movie.original_title
-        and normalize_search_text(movie.original_title)
-        != normalize_search_text(movie.title)
-    ):
-        parts.append(f"Original title: {movie.original_title}")
     if movie.tagline:
         parts.append(f"Tagline: {movie.tagline}")
+
     if movie.genres:
         parts.append(f"Genres: {', '.join(movie.genres)}")
+
     if movie.keywords:
-        parts.append(f"Keywords: {', '.join(movie.keywords[:25])}")
+        parts.append(
+            f"Keywords: {', '.join(movie.keywords[:25])}"
+        )
 
     return "\n".join(parts)
