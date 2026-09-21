@@ -21,7 +21,7 @@ langgraph>=0.0.30
 torch>=2.2.0
 transformers>=4.38.0
 sentence-transformers>=2.5.0
-fastembed>=0.3.0
+fastembed==0.8.0
 
 # Settings & Validation
 pydantic>=2.6.0

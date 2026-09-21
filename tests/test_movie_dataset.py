@@ -28,6 +28,40 @@ def test_normalize_search_text_rejects_non_string():
         normalize_search_text(42)
 
 
+def test_seed_arguments_use_safe_defaults():
+    from scripts.seed_db import DEFAULT_SEED_BATCH_SIZE, parse_arguments
+
+    arguments = parse_arguments([])
+
+    assert arguments.limit is None
+    assert arguments.batch_size == DEFAULT_SEED_BATCH_SIZE
+
+
+def test_seed_arguments_accept_limit_and_batch_size():
+    from scripts.seed_db import parse_arguments
+
+    arguments = parse_arguments(["--limit", "10", "--batch-size", "4"])
+
+    assert arguments.limit == 10
+    assert arguments.batch_size == 4
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["--limit", "0"],
+        ["--limit", "-1"],
+        ["--batch-size", "0"],
+        ["--batch-size", "invalid"],
+    ],
+)
+def test_seed_arguments_reject_invalid_positive_numbers(arguments):
+    from scripts.seed_db import parse_arguments
+
+    with pytest.raises(SystemExit):
+        parse_arguments(arguments)
+
+
 def test_extract_names_normalizes_and_removes_duplicates():
     value = str([
         {"name": " Science   Fiction "},
@@ -129,6 +163,28 @@ def test_embedding_text_handles_missing_optional_metadata(seed_record):
     assert build_movie_embedding_text(movie).splitlines() == [
         "Title: The Game", "Overview: A banker receives an unusual birthday gift.",
     ]
+
+
+def test_seed_record_converts_pandas_nan_to_none(seed_record):
+    from dataclasses import asdict
+
+    from scripts.movie_dataset import row_to_movie_seed_record
+
+    row = pd.Series(asdict(seed_record))
+    optional_fields = (
+        "imdb_id",
+        "original_title",
+        "normalized_original_title",
+        "original_language",
+        "tagline",
+    )
+    for field in optional_fields:
+        row[field] = float("nan")
+
+    movie = row_to_movie_seed_record(row)
+
+    for field in optional_fields:
+        assert getattr(movie, field) is None
 
 
 def test_movie_rows_preserve_pairing_and_python_types(seed_record):

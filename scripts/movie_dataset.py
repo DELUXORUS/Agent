@@ -549,14 +549,16 @@ def prepare_and_filter_movies(
 def row_to_movie_seed_record(row: pd.Series) -> MovieSeedRecord:
     return MovieSeedRecord(
         tmdb_id=int(row["tmdb_id"]),
-        imdb_id=row["imdb_id"],
+        imdb_id=clean_optional_text(row["imdb_id"]),
         title=row["title"],
         normalized_title=row["normalized_title"],
-        original_title=row["original_title"],
-        normalized_original_title=row["normalized_original_title"],
-        original_language=row["original_language"],
+        original_title=clean_optional_text(row["original_title"]),
+        normalized_original_title=clean_optional_text(
+            row["normalized_original_title"]
+        ),
+        original_language=clean_optional_text(row["original_language"]),
         overview=row["overview"],
-        tagline=row["tagline"],
+        tagline=clean_optional_text(row["tagline"]),
         genres=tuple(row["genres"]),
         actors=tuple(row["actors"]),
         directors=tuple(row["directors"]),

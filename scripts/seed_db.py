@@ -1,4 +1,6 @@
+import argparse
 import asyncio
+from collections.abc import Sequence
 from dataclasses import asdict
 from typing import TYPE_CHECKING
 
@@ -19,6 +21,32 @@ if TYPE_CHECKING:
     from app.services.embedder import EmbedderService
 
 DEFAULT_SEED_BATCH_SIZE = 200
+
+
+def positive_int(value: str) -> int:
+    parsed_value = int(value)
+    if parsed_value <= 0:
+        raise argparse.ArgumentTypeError("value must be greater than zero")
+    return parsed_value
+
+
+def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Prepare movie metadata and seed it into PostgreSQL.",
+    )
+    parser.add_argument(
+        "--limit",
+        type=positive_int,
+        default=None,
+        help="Process only the first N prepared movies.",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=positive_int,
+        default=DEFAULT_SEED_BATCH_SIZE,
+        help=f"Movies committed per batch (default: {DEFAULT_SEED_BATCH_SIZE}).",
+    )
+    return parser.parse_args(argv)
 
 
 async def generate_movie_embeddings(
@@ -130,7 +158,10 @@ async def seed_movies(
     return seeded_count
 
 
-async def main() -> None:
+async def main(
+    limit: int | None = None,
+    batch_size: int = DEFAULT_SEED_BATCH_SIZE,
+) -> None:
     from app.db.database import async_session_maker, engine, init_db
     from app.services.embedder import embedder
     from scripts.inspect_movie_dataset import load_raw_datasets
@@ -139,6 +170,8 @@ async def main() -> None:
     merged = merge_movie_datasets(movies, credits, keywords)
     prepared, _ = prepare_and_filter_movies(merged)
     movie_records = build_movie_seed_records(prepared)
+    if limit is not None:
+        movie_records = movie_records[:limit]
 
     try:
         await init_db()
@@ -147,6 +180,7 @@ async def main() -> None:
                 session,
                 movie_records,
                 embedder,
+                batch_size=batch_size,
             )
     finally:
         await engine.dispose()
@@ -155,4 +189,10 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    arguments = parse_arguments()
+    asyncio.run(
+        main(
+            limit=arguments.limit,
+            batch_size=arguments.batch_size,
+        )
+    )

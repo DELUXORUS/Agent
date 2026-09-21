@@ -1,5 +1,7 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     BOT_TOKEN: str
@@ -18,12 +20,12 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "agent_db"
     POSTGRES_HOST: str | None = None
     POSTGRES_PORT: int = 5432
-
+    SQLALCHEMY_ECHO: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
     )
 
     @property
@@ -43,6 +45,7 @@ class Settings(BaseSettings):
             f"{self.POSTGRES_PASSWORD}@{host}:"
             f"{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
+
 
 settings = Settings()
 
