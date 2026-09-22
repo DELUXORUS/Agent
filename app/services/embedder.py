@@ -1,4 +1,6 @@
 import asyncio
+import re
+import warnings
 
 from loguru import logger
 from fastembed import TextEmbedding
@@ -25,7 +27,19 @@ class EmbedderService:
             "EmbedderService запущен на ONNX Runtime (FastEmbed) | "
             f"Модель: {model_name} | Размерность: {model_dimension}"
         )
-        self.model = TextEmbedding(model_name=model_name)
+        # FastEmbed 0.8.0 intentionally uses mean pooling for this model. The
+        # catalog embeddings were generated with the same version and pooling,
+        # so the compatibility warning about pre-0.8 behavior is not actionable.
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=(
+                    rf"The model {re.escape(model_name)} now uses mean pooling "
+                    r"instead of CLS embedding\..*"
+                ),
+                category=UserWarning,
+            )
+            self.model = TextEmbedding(model_name=model_name)
 
     async def get_embedding(self, text: str) -> list[float]:
         def _encode() -> list[float]:

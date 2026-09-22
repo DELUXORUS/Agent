@@ -1,4 +1,5 @@
 import runpy
+import warnings
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,20 @@ def load_embedder_module(monkeypatch):
             return 384
 
         def __init__(self, model_name: str):
+            if model_name == "pooling-warning-model":
+                warnings.warn(
+                    "The model pooling-warning-model now uses mean pooling "
+                    "instead of CLS embedding. In order to preserve the "
+                    "previous behaviour, pin an older version.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            elif model_name == "other-warning-model":
+                warnings.warn(
+                    "Unrelated model warning",
+                    UserWarning,
+                    stacklevel=2,
+                )
             created_models.append(model_name)
 
     monkeypatch.setattr(
@@ -41,3 +56,20 @@ def test_embedder_rejects_model_with_wrong_dimension(monkeypatch):
         module["EmbedderService"]("wrong-dimension-model")
 
     assert "wrong-dimension-model" not in created_models
+
+
+def test_embedder_suppresses_known_pooling_migration_warning(monkeypatch):
+    module, _ = load_embedder_module(monkeypatch)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        module["EmbedderService"]("pooling-warning-model")
+
+    assert caught == []
+
+
+def test_embedder_keeps_unrelated_warnings_visible(monkeypatch):
+    module, _ = load_embedder_module(monkeypatch)
+
+    with pytest.warns(UserWarning, match="Unrelated model warning"):
+        module["EmbedderService"]("other-warning-model")
