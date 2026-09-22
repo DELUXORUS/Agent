@@ -36,7 +36,8 @@ async def test_graph_uses_real_service_and_postgresql(
     )))
     llm = Mock()
 
-    def structured_output(schema):
+    def structured_output(schema, *, method):
+        assert method == "function_calling"
         if schema is MovieQueryPlan:
             return parser
         if schema is MovieEvaluation:

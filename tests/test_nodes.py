@@ -46,7 +46,8 @@ async def test_parser_query_node():
     }
 
     llm.with_structured_output.assert_called_once_with(
-        MovieQueryPlan
+        MovieQueryPlan,
+        method="function_calling",
     )
 
     structured_llm.ainvoke.assert_awaited_once()

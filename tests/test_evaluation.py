@@ -35,6 +35,10 @@ def evaluation_llm(response):
 async def test_evaluation_keeps_original_movies_and_search_order(state):
     llm, structured = evaluation_llm(MovieEvaluation(accepted_movie_ids=[3, 1]))
     result = await evaluate_results(state, llm)
+    llm.with_structured_output.assert_called_once_with(
+        MovieEvaluation,
+        method="function_calling",
+    )
     assert [movie.id for movie in result["selected_movies"]] == [1, 3]
     assert result["selected_movies"][0] is state["candidates"][0]
     assert len(state["candidates"]) == 3

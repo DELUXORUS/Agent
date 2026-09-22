@@ -50,7 +50,7 @@ workflow.add_node(
     "parser_query_node",
     partial(
         parser_query_node,
-        llm=llm_creative
+        llm=llm_strict
     )
 )
 

@@ -27,14 +27,17 @@ async def parser_query_node(
         state: AgentState,
         llm: ChatOpenAI
 ) -> dict:
-    structed_output_llm = llm.with_structured_output(MovieQueryPlan)
+    structured_output_llm = llm.with_structured_output(
+        MovieQueryPlan,
+        method="function_calling",
+    )
 
     messages = [
         SystemMessage(content=prompts["SYSTEM_PARSER_QUERY_PROMPT"]),
         HumanMessage(content=state['user_query'])
     ]
 
-    query_plan: MovieQueryPlan = await structed_output_llm.ainvoke(messages)
+    query_plan: MovieQueryPlan = await structured_output_llm.ainvoke(messages)
 
     return {
         'query_plan': query_plan,
@@ -228,8 +231,11 @@ async def evaluate_results(
         ),
     ]
 
-    structed_output_llm = llm.with_structured_output(MovieEvaluation)
-    response = await structed_output_llm.ainvoke(messages)
+    structured_output_llm = llm.with_structured_output(
+        MovieEvaluation,
+        method="function_calling",
+    )
+    response = await structured_output_llm.ainvoke(messages)
 
     evaluation = MovieEvaluation.model_validate(response)
 
