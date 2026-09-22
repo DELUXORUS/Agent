@@ -49,7 +49,8 @@ def pipeline(monkeypatch):
 
     llm.with_structured_output.side_effect = structured_output
     llm.ainvoke = AsyncMock(side_effect=AssertionError("Unexpected unstructured LLM call"))
-    monkeypatch.setattr("langchain_openai.ChatOpenAI", Mock(return_value=llm))
+    chat_model_factory = Mock(return_value=llm)
+    monkeypatch.setattr("langchain_openai.ChatOpenAI", chat_model_factory)
     service = Mock(
         search_recommendations=AsyncMock(return_value=movies),
         resolve_reference=AsyncMock(side_effect=AssertionError("Unexpected reference lookup")),
@@ -66,6 +67,11 @@ def pipeline(monkeypatch):
     monkeypatch.setitem(sys.modules, "app.db.database", database_module)
     path = Path(__file__).resolve().parents[1] / "app/agent/graph.py"
     graph = runpy.run_path(str(path))["graph"]
+    assert chat_model_factory.call_count == 2
+    assert all(
+        call.kwargs["extra_body"] == {"models": ["openrouter/free"]}
+        for call in chat_model_factory.call_args_list
+    )
     return SimpleNamespace(
         graph=graph, parser=parser, evaluator=evaluator, llm=llm,
         service=service, movies=movies, plan=plan,

@@ -21,21 +21,26 @@ from app.services.embedder import embedder
 from app.db.database import async_session_maker
 
 
-llm_strict = ChatOpenAI(
-    model=settings.LLM_MODEL_NAME,
-    temperature=settings.LLM_STRICT_TEMPERATURE,
-    api_key=settings.OPENROUTER_API_KEY,
-    base_url=settings.OPENROUTER_URL,
-    max_retries=3
-)
+def create_chat_model(temperature: float) -> ChatOpenAI:
+    fallback_models = settings.llm_fallback_models
+    openrouter_options = (
+        {"extra_body": {"models": fallback_models}}
+        if fallback_models
+        else {}
+    )
 
-llm_creative = ChatOpenAI(
-    model=settings.LLM_MODEL_NAME,
-    temperature=settings.LLM_CREATIVE_TEMPERATURE,
-    api_key=settings.OPENROUTER_API_KEY,
-    base_url=settings.OPENROUTER_URL,
-    max_retries=3
-)
+    return ChatOpenAI(
+        model=settings.LLM_MODEL_NAME,
+        temperature=temperature,
+        api_key=settings.OPENROUTER_API_KEY,
+        base_url=settings.OPENROUTER_URL,
+        max_retries=3,
+        **openrouter_options,
+    )
+
+
+llm_strict = create_chat_model(settings.LLM_STRICT_TEMPERATURE)
+llm_creative = create_chat_model(settings.LLM_CREATIVE_TEMPERATURE)
 
 
 movie_search_service = MovieSearchService(

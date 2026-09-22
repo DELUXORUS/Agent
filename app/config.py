@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     RABBITMQ_URL: str
     EMBEDDER_MODEL_NAME: str
     LLM_MODEL_NAME: str
+    LLM_FALLBACK_MODELS: str = "openrouter/free"
     OPENROUTER_URL: str
 
     LLM_STRICT_TEMPERATURE: float = 0.0  # Для классификации и парсинга JSON
@@ -45,6 +46,18 @@ class Settings(BaseSettings):
             f"{self.POSTGRES_PASSWORD}@{host}:"
             f"{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
+
+    @property
+    def llm_fallback_models(self) -> list[str]:
+        models = (
+            model.strip()
+            for model in self.LLM_FALLBACK_MODELS.split(",")
+        )
+        return list(dict.fromkeys(
+            model
+            for model in models
+            if model and model != self.LLM_MODEL_NAME
+        ))
 
 
 settings = Settings()
